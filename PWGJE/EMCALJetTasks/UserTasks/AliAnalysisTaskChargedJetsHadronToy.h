@@ -25,6 +25,9 @@ public:
   void                        AddTracksFromInputEvent(const char* arrName) {fEventTracksArrayName = arrName; fAddTracksFromInputEvent = kTRUE;}
   void                        AddTracksFromToy(const char* configFileName = "alien:///alice/cern.ch/user/r/rhaake/Distributions_PbPb_1800.root");
 
+  // Setters and Getters for Cell Modifications
+  void                        AddCellsFromToy(const char* configFileName = "alien:///alice/cern.ch/user/h/hbossi/Distributions_Clusters.root");
+
   void                        SetTrackingEfficiency_InputEvent(Double_t val) {fTrackEfficiency_InputEvent = val;}
   void                        SetTrackingEfficiency_Toy(Double_t val) {fTrackEfficiency_Toy = val;}
   void                        SetTrackingEfficiency_ME(Double_t val) {fTrackEfficiency_ME = val;}
@@ -45,11 +48,20 @@ public:
   void                        SetDistributionV5(TH2* val)                     {fDistributionV5 = val;}
   void                        SetRangeCentrality(Int_t min, Int_t max)        {fMinCentrality = min; fMaxCentrality = max;}
   void                        SetMaxEta(Double_t val)                         {fMaxEta = val;}
+  
+  void                        SetDistributionCellMultiplicity(TH1* val)       {fDistributionCellMultiplicity = val;}
+  void                        SetDistributionCellAmp(TH1* val)                {fDistributionCellAmp = val;}
+  void                        SetDistributionCellID(TH1* val)                 {fDistributionCellID = val;}
+  
 
-  void                        SetOutputArrayName(const char* val)             {fOutputArrayName = val;}
+  void                        SetOutputTracksArrayName(const char* val)       {fOutputTracksArrayName = val;}
+  void                        SetOutputToyCellsName(const char* val)          {fOutputToyCellsName = val;}
+
 
   void                        SetMixedEventTreeName(const char* val)          {fMixedEvent_TreeName = val;}
   void                        SetMixedEventTotalFiles(Int_t val)              {fMixedEvent_NumTotalFiles = val;}
+  
+  AliAODCaloCells*            GetToyCells(const char* arrName)                {if(arrName == fOutputToyCellsName) return fOutputToyCells;}         
 
 protected:
   // ### Settings
@@ -57,6 +69,8 @@ protected:
   Bool_t                      fAddTracksFromPicoTracks;           // Use tracks from PicoTrack array in event
   Bool_t                      fAddTracksFromToy;                  // Use toy model to add tracks
   Bool_t                      fAddTracksFromMixedEvent;           // Use tracks from mixed event trees
+
+  Bool_t                      fAddCellsFromToy;                  // Use toy model to add cells
 
   Double_t                    fTrackEfficiency_InputEvent;        // tracking efficiency
   Double_t                    fTrackEfficiency_Toy;               // tracking efficiency
@@ -71,9 +85,13 @@ protected:
   TH1*                        fDistributionMultiplicity;          // histogram for multiplicity distribution
   TH1*                        fDistributionPt;                    // histogram for Pt distribution
   TH1*                        fDistributionEtaPhi;                // histogram for eta/phi distribution
+  TH1*                        fDistributionCellMultiplicity;      // histogram for cell multiplicity distribution
+  TH1*                        fDistributionCellAmp;               // histogram for cell amp distribution
+  TH1*                        fDistributionCellID;                // histogram for cell ID distribution
   Int_t                       fMinCentrality;                     // minimum centrality
   Int_t                       fMaxCentrality;                     // maximum centrality
   Double_t                    fMaxEta;                            // maximum eta
+
 
   TH2*                        fDistributionV2;                    /// Distribution for v2 in bins of pt and centrality
   TH2*                        fDistributionV3;                    /// Distribution for v3 in bins of pt and centrality
@@ -88,13 +106,13 @@ protected:
   TString                     fMixedEvent_TreeName;               //  ME: name of tree from file
   Int_t                       fMixedEvent_CurrentEventID;         //  ME: current event in tree
   Int_t                       fMixedEvent_NumTotalFiles;          //  ME: number total files
-  
+
   Int_t                       fBuffer_NumTracks;                  //  number tracks in event
   Float_t*                    fBuffer_TrackPt;                    //! buffer for track pt array
   Float_t*                    fBuffer_TrackPhi;                   //! buffer for track phi array
   Float_t*                    fBuffer_TrackEta;                   //! buffer for track eta array
   Short_t*                    fBuffer_TrackCharge;                //! buffer for track charge array
-  
+
   // ### Input/output settings+arrays
   TString                     fPicoTracksArrayName;               // Name of the TClonesArray that will be loaded
   TClonesArray*               fPicoTracksArray;                   //! input array containing pico tracks
@@ -102,8 +120,11 @@ protected:
   TString                     fEventTracksArrayName;              // Name of the TClonesArray that will be loaded
   TClonesArray*               fEventTracksArray;                  //! input array containing tracks from events
 
-  TString                     fOutputArrayName;                   // Name of the TClonesArray that will be written
-  TClonesArray*               fOutputArray;                       //! output array
+  TString                     fOutputTracksArrayName;             // Name of the TClonesArray that will be written for tracks
+  TClonesArray*               fOutputTracksArray;                 //! output array for tracks
+
+  TString                     fOutputToyCellsName;                // Name of the AliAODCaloCells object that will be written for the toy cells
+  AliAODCaloCells*            fOutputToyCells;                    //! output AliAODCaloCells object for toy cells (input event cells already attached to event)
 
   // ### Misc
   TRandom3*                   fRandom;                            //! random number generator

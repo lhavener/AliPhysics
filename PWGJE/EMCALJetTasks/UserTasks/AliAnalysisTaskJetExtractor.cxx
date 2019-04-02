@@ -983,6 +983,21 @@ void AliAnalysisTaskJetExtractor::GetTrueJetPtFraction(AliEmcalJet* jet, Double_
       pt_truth += particle->Pt();
     pt_all += particle->Pt();
   }
+  // Get the Primary Vertex
+  Double_t vtxX = 0;
+  Double_t vtxY = 0;
+  Double_t vtxZ = 0;
+  const AliVVertex* myVertex = InputEvent()->GetPrimaryVertex();
+  if(!myVertex && MCEvent())
+    myVertex = MCEvent()->GetPrimaryVertex();
+  if(myVertex)
+  {
+    vtxX = myVertex->GetX();
+    vtxY = myVertex->GetY();
+    vtxZ = myVertex->GetZ();
+  }
+
+  Double_t primVtx[3] = {vtxX, vtxY, vtxZ};
 
   // ### Loop over all cluster constituents
   for(Int_t iConst = 0; iConst < jet->GetNumberOfClusterConstituents(); iConst++)
@@ -992,30 +1007,36 @@ void AliAnalysisTaskJetExtractor::GetTrueJetPtFraction(AliEmcalJet* jet, Double_
     if(cluster->E() < 1e-6) continue;
 
     // #### Retrieve cluster pT
-    Double_t vtxX = 0;
-    Double_t vtxY = 0;
-    Double_t vtxZ = 0;
-    const AliVVertex* myVertex = InputEvent()->GetPrimaryVertex();
-    if(!myVertex && MCEvent())
-      myVertex = MCEvent()->GetPrimaryVertex();
-    if(myVertex)
-    {
-      vtxX = myVertex->GetX();
-      vtxY = myVertex->GetY();
-      vtxZ = myVertex->GetZ();
-    }
-
-    Double_t primVtx[3] = {vtxX, vtxY, vtxZ};
     TLorentzVector clusterMomentum;
     cluster->GetMomentum(clusterMomentum, primVtx);
     Double_t ClusterPt = clusterMomentum.Perp();
     // ####
 
     // Particles marked w/ labels within label range OR explicitly set as embedded clusters are considered to be from truth
-    if (  (fIsEmbeddedEvent && jet->GetClusterConstituents()[iConst].IsFromEmbeddedEvent()) ||
-          (!fIsEmbeddedEvent && ((cluster->GetLabel() >= fTruthMinLabel) && (cluster->GetLabel() < fTruthMaxLabel)))  )
-      pt_truth += ClusterPt;
+    // if (  (fIsEmbeddedEvent && jet->GetClusterConstituents()[iConst].IsFromEmbeddedEvent()) ||
+    //       (!fIsEmbeddedEvent && ((cluster->GetLabel() >= fTruthMinLabel) && (cluster->GetLabel() < fTruthMaxLabel))))
+    //         pt_truth += ClusterPt;
+
+    // Get the total pT from clusters in the jet
     pt_all += ClusterPt;
+  } // end loop over clusters
+
+
+  // Calculate the truth pT for the case of embedding
+  if (fIsEmbeddedEvent){
+    // get the cluster container from the input event corresponding
+    AliClusterContainer* clusterCont = 0;
+    clusterCont = GetClusterContainer("caloClusters"); // note this is not robust, assuming default naming
+    // loop over clusters in the input event
+    for(int k=0; k< clusterCont->GetNClusters(); k++){
+      const AliVCluster* cluster = clusterCont->GetCluster(k);
+      TLorentzVector clusterMomentum;
+      cluster->GetMomentum(clusterMomentum, primVtx);
+      Double_t ClusterPt = clusterMomentum.Perp();
+      if(IsClusterInCone(clusterMomentum, jet->Eta(), jet->Phi(), GetJetContainer(0)->GetJetRadius())){
+        pt_truth += ClusterPt;
+      }
+    }
   }
 
   // ### Loop over all primary (charged) MC particles and check if they have a corresponding track/cluster
@@ -1643,6 +1664,16 @@ void AliAnalysisTaskJetExtractor::PrintConfig()
 inline Bool_t AliAnalysisTaskJetExtractor::IsTrackInCone(const AliVParticle* track, Double_t eta, Double_t phi, Double_t radius)
 {
   Double_t deltaR = GetDistance(track->Eta(), eta, track->Phi(), phi);
+  if(deltaR <= radius)
+    return kTRUE;
+
+  return kFALSE;
+}
+
+//________________________________________________________________________
+inline Bool_t AliAnalysisTaskJetExtractor::IsClusterInCone( TLorentzVector clusterMomentum, Double_t eta, Double_t phi,Double_t radius)
+{
+  Double_t deltaR = GetDistance(clusterMomentum.Eta(), eta, clusterMomentum.Phi(), phi);
   if(deltaR <= radius)
     return kTRUE;
 

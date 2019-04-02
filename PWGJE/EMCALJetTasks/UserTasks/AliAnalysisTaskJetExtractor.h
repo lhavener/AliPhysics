@@ -86,6 +86,7 @@ class AliAnalysisTaskJetExtractor : public AliAnalysisTaskEmcalJet {
   void                        GetJetType(AliEmcalJet* jet, Int_t& typeHM, Int_t& typePM, Int_t& typeIC);
   Bool_t                      IsTriggerTrackInEvent();
   Bool_t                      IsTrackInCone(const AliVParticle* track, Double_t eta, Double_t phi, Double_t radius);
+  Bool_t                      IsClusterInCone( TLorentzVector clusterMomentum, Double_t eta, Double_t phi,Double_t radius);
   Bool_t                      IsStrangeJet(AliEmcalJet* jet);
   void                        PrintConfig();
   void                        AddPIDInformation(const AliVParticle* particle, Float_t& sigITS, Float_t& sigTPC, Float_t& sigTOF, Float_t& sigTRD, Short_t& recoPID, Int_t& truePID);

@@ -26,7 +26,7 @@ AliAnalysisTaskChargedJetsHadronToy* AddTaskChargedJetsHadronToy(
   AliAnalysisDataContainer* contHistos = mgr->CreateContainer(Form("Toy_histos_%s", trackOutput), TList::Class(), AliAnalysisManager::kOutputContainer, Form("%s", AliAnalysisManager::GetCommonFileName()));
 
   AliAnalysisTaskChargedJetsHadronToy* toyModel = new AliAnalysisTaskChargedJetsHadronToy();
-  toyModel->SetOutputArrayName(trackOutput);
+  toyModel->SetOutputTracksArrayName(trackOutput);
   mgr->AddTask(toyModel);
 
   //==============================================================================
