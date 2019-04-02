@@ -177,6 +177,7 @@ set(SRCS
     UserTasks/AliAnalysisTaskEmcalJetHadEPpid.cxx
     UserTasks/AliAnalysisTaskEmcalJetHUtils.cxx
     UserTasks/AliAnalysisTaskEmcalJetHPerformance.cxx
+    UserTasks/AliAnalysisTaskEmcalJetPerfTree.cxx	
     UserTasks/AliAnalysisTaskEmcalJetHCorrelations.cxx
     UserTasks/AliAnalysisTaskEmcalJetMassBkg.cxx
     UserTasks/AliAnalysisTaskEmcalJetMass.cxx
