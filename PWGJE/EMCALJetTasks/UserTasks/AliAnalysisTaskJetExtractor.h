@@ -53,9 +53,9 @@ class AliAnalysisTaskJetExtractor : public AliAnalysisTaskEmcalJet {
   void                        SetSaveSecondaryVertices(Bool_t val) {fSaveSecondaryVertices = val; fInitialized = kFALSE;}
   void                        SetSaveTriggerTracks(Bool_t val) {fSaveTriggerTracks = val; fInitialized = kFALSE;}
   void                        SetSaveCaloClusters(Bool_t val) {fSaveCaloClusters = val; fInitialized = kFALSE;}
-
-  void                        ActivateJetMatching(const char* arrayName, const char* rhoName = 0, const char* rhoMassName = 0)
-                                {fMatchedJetsArrayName = arrayName; fMatchedJetsRhoName = rhoName ? rhoName : ""; fMatchedJetsRhoMassName = rhoMassName ? rhoMassName : "";}
+  
+  void                        ActivateJetMatching(const char* arrayName, const char* secondArrayName, const char* rhoName = 0, const char* rhoMassName = 0)
+                                {fMatchedJetsArrayName = arrayName; fSecondMatchedJetsArrayName = secondArrayName; fMatchedJetsRhoName = rhoName ? rhoName : ""; fMatchedJetsRhoMassName = rhoMassName ? rhoMassName : "";}
   void                        SetMCParticleArrayName(const char* name)            { fMCParticleArrayName = name; }
   void                        SetHadronMatchingRadius(Double_t val)               { fHadronMatchingRadius  = val; }
   void                        SetSecondaryVertexMaxChi2(Double_t val   )          { fSecondaryVertexMaxChi2 = val; }
@@ -116,6 +116,7 @@ class AliAnalysisTaskJetExtractor : public AliAnalysisTaskEmcalJet {
   Double_t                    fHadronMatchingRadius;                    ///< Matching radius to search for beauty/charm hadrons around jet
 
   TString                     fMatchedJetsArrayName;                    ///< Array name for matched jets
+  TString                     fSecondMatchedJetsArrayName;              ///< Array name for the second iteration of matching
   TString                     fMatchedJetsRhoName;                      ///< Name for matched jets rho object
   TString                     fMatchedJetsRhoMassName;                  ///< Name for matched jets rho_mass object
   TString                     fMCParticleArrayName;                     ///< Array name of MC particles in event (mcparticles)

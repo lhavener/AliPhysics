@@ -488,6 +488,7 @@ AliAnalysisTaskJetExtractor::AliAnalysisTaskJetExtractor() :
   fTruthMaxLabel(100000),
   fHadronMatchingRadius(0.4),
   fMatchedJetsArrayName(""),
+  fSecondMatchedJetsArrayName(""),
   fMatchedJetsRhoName(""),
   fMatchedJetsRhoMassName(""),
   fMCParticleArrayName("mcparticles"),
@@ -535,6 +536,7 @@ AliAnalysisTaskJetExtractor::AliAnalysisTaskJetExtractor(const char *name) :
   fTruthMaxLabel(100000),
   fHadronMatchingRadius(0.4),
   fMatchedJetsArrayName(""),
+  fSecondMatchedJetsArrayName(""),
   fMatchedJetsRhoName(""),
   fMatchedJetsRhoMassName(""),
   fMCParticleArrayName("mcparticles"),
@@ -1064,22 +1066,35 @@ void AliAnalysisTaskJetExtractor::GetTrueJetPtFraction(AliEmcalJet* jet, Double_
 }
 
 //________________________________________________________________________
-void AliAnalysisTaskJetExtractor::GetMatchedJetObservables(AliEmcalJet* jet, Double_t& matchedJetPt, Double_t& matchedJetMass, Double_t& matchedJetDistance)
+void AliAnalysisTaskJetExtractor::GetMatchedJetObservables(AliEmcalJet* jet, Double_t& matchedJetPt, Double_t& matchedJetMass, Double_t& matchedJetDistance, Bool_t IsSecondMatching)
 {
+  // need to specify which array name to pick based on if this is the second matching
+  TString jet_array_name = "";
+  if(IsSecondMatching){
+    jet_array_name = fSecondMatchedJetsArrayName;
+  }
+  else{
+    jet_array_name = fMatchedJetsArrayName;
+  }
+
   // #################################################################################
   // ##### OBSERVABLES FROM MATCHED JETS: Jet pt, jet mass
   matchedJetDistance = 8.; // 8 is higher than maximum possible matching distance
-  if(fMatchedJetsArrayName != "")
+  if(jets_array_name != "")
   {
-    // "True" background for pt
-    AliRhoParameter* rho = static_cast<AliRhoParameter*>(InputEvent()->FindListObject(fMatchedJetsRhoName.Data()));
+    // only look at background for first Matching (don't need this for truth level-info)
+    AliRhoParameter* rho = 0;
+    AliRhoParameter* rhoMass = 0;
     Double_t trueRho = 0;
-    if(rho)
-     trueRho = rho->GetVal();
-
-    // "True" background for mass
-    AliRhoParameter* rhoMass = static_cast<AliRhoParameter*>(InputEvent()->FindListObject(fMatchedJetsRhoMassName.Data()));
-    TClonesArray* matchedJetArray = static_cast<TClonesArray*>(InputEvent()->FindListObject(Form("%s", fMatchedJetsArrayName.Data())));
+    if(!IsSecondMatching){
+      // "True" background for pt
+      rho = static_cast<AliRhoParameter*>(InputEvent()->FindListObject(fMatchedJetsRhoName.Data()));
+      if(rho)
+       trueRho = rho->GetVal();
+      // "True" background for mass
+      rhoMass = static_cast<AliRhoParameter*>(InputEvent()->FindListObject(fMatchedJetsRhoMassName.Data()));
+    }
+    TClonesArray* matchedJetArray = static_cast<TClonesArray*>(InputEvent()->FindListObject(Form("%s", jet_array_name.Data())));
 
     // Loop over all true jets to find the best match
     matchedJetPt = 0;
@@ -1639,6 +1654,8 @@ void AliAnalysisTaskJetExtractor::PrintConfig()
     std::cout << Form("* EMCal embedding framework will be used (at least on container has IsEmbedded() true)") << std::endl;
   if(fMatchedJetsArrayName != "")
     std::cout << Form("* Jet matching active, array=%s, rho=%s, rho_mass=%s", fMatchedJetsArrayName.Data(), fMatchedJetsRhoName.Data(), fMatchedJetsRhoMassName.Data()) << std::endl;
+  if(fSecondMatchedJetsArrayName != "")
+    std::cout << Form("* Second Jet matching active, array=%s",  fSecondMatchedJetsArrayName.Data()) << std::endl;
   if(fMCParticleArray)
     std::cout << Form("* Particle level information available (for jet origin calculation, particle code): %s", fMCParticleArrayName.Data()) << std::endl;
   if(extractionHM.size())
