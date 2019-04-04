@@ -77,10 +77,14 @@ class AliAnalysisTaskEmcalJetPerfTree : public AliAnalysisTaskEmcalJet {
   double fMinFractionShared;             ///<  Minimum fraction of shared jet pt required for matching a hybrid jet to detector level     
   bool fCreateTree; ///< If true, also fill a tree with MC variables in addition to the response and JES
 
-  Float_t         fJetPt;                        //!<! array buffer                                                                      
-  Float_t         fJetEta;                       //!<! array buffer                                                                      
-  Float_t         fJetPhi;                       //!<! array buffer                                                                      
-  Float_t         fJetArea;                      //!<! array buffer  
+  Float_t         fJet1_Pt;                        //!<! array buffer                                                                      
+  Float_t         fJet1_Eta;                       //!<! array buffer                                                                      
+  Float_t         fJet1_Phi;                       //!<! array buffer                                                                      
+  Float_t         fJet1_Area;                      //!<! array buffer  
+  Float_t         fJet2_Pt;                        //!<! array buffer                                                                      
+  Float_t         fJet2_Eta;                       //!<! array buffer                                                                      
+  Float_t         fJet2_Phi;                       //!<! array buffer                                                                      
+  Float_t         fJet2_Area;                      //!<! array buffer  
   Float_t         fEvent_BackgroundDensity;      //!<! array buffer                                                                      
   Float_t         fEvent_Vertex_X;               //!<! array buffer                                                                      
   Float_t         fEvent_Vertex_Y;               //!<! array buffer                                                                      
