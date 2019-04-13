@@ -33,14 +33,15 @@
 
 ClassImp(AliNanoAODTrack)
 
-
+Int_t AliNanoAODTrack::fgPIDIndexes[ENanoPIDResponse::kLAST][AliPID::kSPECIESC] = { -1 };
+  
 //______________________________________________________________________________
 AliNanoAODTrack::AliNanoAODTrack() : 
   AliVTrack(),
   AliNanoAODStorage(),
   fLabel(0),
   fProdVertex(0),
-  fCharge(0),
+  fNanoFlags(0),
   fAODEvent(NULL)
 {
   // default constructor
@@ -62,7 +63,7 @@ AliNanoAODTrack::AliNanoAODTrack(AliAODTrack * aodTrack, const char * vars) :
   AliNanoAODStorage(),
   fLabel(0),
   fProdVertex(0),
-  fCharge(0),
+  fNanoFlags(0),
   fAODEvent(NULL)
 {
   // constructor
@@ -91,7 +92,7 @@ AliNanoAODTrack::AliNanoAODTrack(AliAODTrack * aodTrack, const char * vars) :
     else if(varString == "pDCAz"                  ) SetVar(AliNanoAODTrackMapping::GetInstance()->GetPDCAZ()            , aodTrack->PzAtDCA()                 );
     else if(varString == "RAtAbsorberEnd"         ) SetVar(AliNanoAODTrackMapping::GetInstance()->GetRAtAbsorberEnd()   , aodTrack->GetRAtAbsorberEnd()       );
     else if(varString == "TPCncls"                ) SetVar(AliNanoAODTrackMapping::GetInstance()->GetTPCncls()          , aodTrack->GetTPCNcls()              );
-    else if(varString == "id"                     ) SetVar(AliNanoAODTrackMapping::GetInstance()->Getid()               , aodTrack->GetID()                   );
+    else if(varString == "ID"                     ) SetVar(AliNanoAODTrackMapping::GetInstance()->GetID()               , aodTrack->GetID()                   );
     else if(varString == "TPCnclsF"               ) SetVar(AliNanoAODTrackMapping::GetInstance()->GetTPCnclsF()         , aodTrack->GetTPCNclsF()             );
     else if(varString == "TPCNCrossedRows"        ) SetVar(AliNanoAODTrackMapping::GetInstance()->GetTPCNCrossedRows()  , aodTrack->GetTPCNCrossedRows()      );
     else if(varString == "TrackPhiOnEMCal"        ) SetVar(AliNanoAODTrackMapping::GetInstance()->GetTrackPhiOnEMCal()  , aodTrack->GetTrackPhiOnEMCal()      );
@@ -117,6 +118,7 @@ AliNanoAODTrack::AliNanoAODTrack(AliAODTrack * aodTrack, const char * vars) :
     }
     else if(varString == "TPCnclsS"                ) SetVar(AliNanoAODTrackMapping::GetInstance()->GetTPCnclsS()         , aodTrack->GetTPCnclsS()             );
     else if(varString == "FilterMap"               ) SetVar(AliNanoAODTrackMapping::GetInstance()->GetFilterMap()        , aodTrack->GetFilterMap()            );
+    else if(varString == "TOFBunchCrossing"        ) SetVar(AliNanoAODTrackMapping::GetInstance()->GetTOFBunchCrossing() , aodTrack->GetTOFBunchCrossing()     );
     else if(varString == "covmat0"                 ) {
         Double_t covMatrix[21];
         aodTrack->GetCovarianceXYZPxPyPz(covMatrix);
@@ -129,13 +131,25 @@ AliNanoAODTrack::AliNanoAODTrack(AliAODTrack * aodTrack, const char * vars) :
 
 
   fLabel = aodTrack->GetLabel();
-  fCharge = aodTrack->Charge();
+  
+  if (aodTrack->Charge() > 0)
+    SETBIT(fNanoFlags, kNanoCharge);
+
+  Bool_t hasTOFout  = aodTrack->GetStatus() & AliVTrack::kTOFout;
+  Bool_t hasTOFtime = aodTrack->GetStatus() & AliVTrack::kTIME;
+  const Float_t len = aodTrack->GetIntegratedLength();
+  if (Bool_t(hasTOFout && hasTOFtime) && (len > 350.))
+    SETBIT(fNanoFlags, kNanoHasTOFPID);
+  
+  for (int i=0; i<6; i++)
+    if (aodTrack->HasPointOnITSLayer(i))
+      SETBIT(fNanoFlags, kNanoClusterITS0+i);
+    
   fProdVertex = aodTrack->GetProdVertex();
   // SetUsedForVtxFit(usedForVtxFit);// FIXME: what is this
   // SetUsedForPrimVtxFit(usedForPrimVtxFit);// FIXME: what is this
   // //  if(covMatrix) SetCovMatrix(covMatrix);// FIXME: 
   // for (Int_t i=0;i<3;i++) {fTOFLabel[i]=-1;}
-
 }
 
 //______________________________________________________________________________
@@ -144,7 +158,7 @@ AliNanoAODTrack::AliNanoAODTrack(AliESDTrack * /*esdTrack*/, const char * /*vars
   AliNanoAODStorage(),
   fLabel(0),
   fProdVertex(0),
-  fCharge(0),
+  fNanoFlags(0),
   fAODEvent(NULL)
 {
   // ctor: Creates a special track by copying the requested variables from an ESD track
@@ -157,7 +171,7 @@ AliNanoAODTrack::AliNanoAODTrack(const char * vars) :
   AliNanoAODStorage(),
   fLabel(0),
   fProdVertex(0),
-  fCharge(0),
+  fNanoFlags(0),
   fAODEvent(NULL)
 {
    // ctor: Creates a special track simply allocating the required variables
@@ -196,7 +210,7 @@ AliNanoAODTrack::AliNanoAODTrack(const AliNanoAODTrack& trk) :
   AliNanoAODStorage(),
   fLabel(trk.fLabel),
   fProdVertex(trk.fProdVertex),
-  fCharge(trk.fCharge),
+  fNanoFlags(trk.fNanoFlags),
   fAODEvent(trk.fAODEvent)
 {
   // Copy constructor
@@ -221,7 +235,7 @@ AliNanoAODTrack& AliNanoAODTrack::operator=(const AliNanoAODTrack& trk)
 
     fLabel      = trk.fLabel;
     fProdVertex = trk.fProdVertex;
-    fCharge     = trk.fCharge;
+    fNanoFlags   = trk.fNanoFlags;
     fAODEvent   = trk.fAODEvent;
     
   }
@@ -560,4 +574,19 @@ void  AliNanoAODTrack::Clear(Option_t * /*opt*/) {
   // empty storage
   fVars.clear();
   fNVars = 0;
+}
+
+Bool_t AliNanoAODTrack::InitPIDIndex()
+{
+  Bool_t anyFilled = kFALSE;
+  for (Int_t r = 0; r<kLAST; r++) {
+    for (Int_t p = 0; p<AliPID::kSPECIESC; p++) {
+      Int_t index = AliNanoAODTrackMapping::GetInstance()->GetVarIndex(GetPIDVarName((ENanoPIDResponse) r, (AliPID::EParticleType) p));
+      fgPIDIndexes[r][p] = index;
+      Printf("%s %d", GetPIDVarName((ENanoPIDResponse) r, (AliPID::EParticleType) p), index);
+      if (index != -1)
+        anyFilled = kTRUE;
+    }
+  }
+  return anyFilled;
 }

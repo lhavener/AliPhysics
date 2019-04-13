@@ -87,7 +87,6 @@ AliAnalysisTaskSELc2V0bachelorTMVAApp::AliAnalysisTaskSELc2V0bachelorTMVAApp():
   AliAnalysisTaskSE(),
   fUseMCInfo(kFALSE),
   fOutput(0),
-  fCEvents(0),
   fPIDResponse(0),
   fPIDCombined(0),
   fIsK0sAnalysis(kFALSE),
@@ -211,7 +210,8 @@ AliAnalysisTaskSELc2V0bachelorTMVAApp::AliAnalysisTaskSELc2V0bachelorTMVAApp():
   fBDTHistoVsCosThetaStar(0),
   fHistoNsigmaTPC(0),
   fHistoNsigmaTOF(0),
-  fDebugHistograms(kFALSE)
+  fDebugHistograms(kFALSE),
+  fAODProtection(1)
 {
   /// Default ctor
   //
@@ -222,7 +222,6 @@ AliAnalysisTaskSELc2V0bachelorTMVAApp::AliAnalysisTaskSELc2V0bachelorTMVAApp(con
   AliAnalysisTaskSE(name),
   fUseMCInfo(kFALSE),
   fOutput(0),
-  fCEvents(0),
   fPIDResponse(0),
   fPIDCombined(0),
   fIsK0sAnalysis(kFALSE),
@@ -346,7 +345,8 @@ AliAnalysisTaskSELc2V0bachelorTMVAApp::AliAnalysisTaskSELc2V0bachelorTMVAApp(con
   fBDTHistoVsCosThetaStar(0),
   fHistoNsigmaTPC(0),
   fHistoNsigmaTOF(0),
-  fDebugHistograms(kFALSE)
+  fDebugHistograms(kFALSE),
+  fAODProtection(1)
 {
   //
   /// Constructor. Initialization of Inputs and Outputs
@@ -515,7 +515,7 @@ void AliAnalysisTaskSELc2V0bachelorTMVAApp::UserCreateOutputObjects() {
   fVariablesTreeBkg = new TTree(Form("%s_Bkg", nameoutput), "Candidates variables tree, Background");
 
   Int_t nVar; 
-  if (fUseMCInfo)  nVar = 48; //"full" tree if MC
+  if (fUseMCInfo)  nVar = 49; //"full" tree if MC
   else nVar = 33; //"reduced" tree if data
   
   fCandidateVariables = new Float_t [nVar];
@@ -570,6 +570,7 @@ void AliAnalysisTaskSELc2V0bachelorTMVAApp::UserCreateOutputObjects() {
     fCandidateVariableNames[45] = "signd0";
     fCandidateVariableNames[46] = "centrality";
     fCandidateVariableNames[47] = "NtrkAll";
+    fCandidateVariableNames[48] = "origin";
   }
   else {   // "light mode"
     fCandidateVariableNames[0] = "massLc2K0Sp";
@@ -614,8 +615,8 @@ void AliAnalysisTaskSELc2V0bachelorTMVAApp::UserCreateOutputObjects() {
   
   fHistoCentrality = new TH1F("fHistoCentrality", "fHistoCentrality", 100, 0., 100.);
 
-  fHistoEvents = new TH1F("fHistoEvents", "fHistoEvents", 2, -0.5, 1.5);
-  TString labelEv[2] = {"NotSelected", "Selected"};
+  fHistoEvents = new TH1F("fHistoEvents", "fHistoEvents", 4, -0.5, 3.5);
+  TString labelEv[4] = {"RejectedDeltaMismatch", "AcceptedDeltaMismatch", "NotSelected", "Selected"};
   for (Int_t ibin = 1; ibin <= fHistoEvents->GetNbinsX(); ibin++){
     fHistoEvents->GetXaxis()->SetBinLabel(ibin, labelEv[ibin-1].Data());
   }
@@ -972,6 +973,19 @@ void AliAnalysisTaskSELc2V0bachelorTMVAApp::UserExec(Option_t *)
   fCurrentEvent++;
   AliDebug(2, Form("Processing event = %d", fCurrentEvent));
   AliAODEvent* aodEvent = dynamic_cast<AliAODEvent*>(fInputEvent);
+
+  if(fAODProtection >= 0){
+    //   Protection against different number of events in the AOD and deltaAOD
+    //   In case of discrepancy the event is rejected.
+    Int_t matchingAODdeltaAODlevel = AliRDHFCuts::CheckMatchingAODdeltaAODevents();
+    if (matchingAODdeltaAODlevel < 0 || (matchingAODdeltaAODlevel == 0 && fAODProtection == 1)) {
+      // AOD/deltaAOD trees have different number of entries || TProcessID do not match while it was required
+      fHistoEvents->Fill(0);
+      return;
+    }
+    fHistoEvents->Fill(1);
+  }
+  
   TClonesArray *arrayLctopKos=0;
 
   TClonesArray *array3Prong = 0;
@@ -1059,10 +1073,10 @@ void AliAnalysisTaskSELc2V0bachelorTMVAApp::UserExec(Option_t *)
   fIsEventSelected = fAnalCuts->IsEventSelected(aodEvent);
 
   if ( !fIsEventSelected ) {
-    fHistoEvents->Fill(0);
+    fHistoEvents->Fill(2);
     return; // don't take into account not selected events
   }
-  fHistoEvents->Fill(1);
+  fHistoEvents->Fill(3);
 
   fHistoTracklets_1->Fill(fNTracklets_1);
   fHistoTracklets_All->Fill(fNTracklets_All);
@@ -1255,7 +1269,6 @@ void AliAnalysisTaskSELc2V0bachelorTMVAApp::MakeAnalysisForLc2prK0S(AliAODEvent 
     }
 
     if(!vHF->FillRecoCasc(aodEvent, lcK0spr, kFALSE)){ //Fill the data members of the candidate only if they are empty.
-      //fCEvents->Fill(18);//monitor how often this fails
       continue;
     }
     //if (!(vHF->RecoSecondaryVertexForCascades(aodEvent, lcK0spr))) continue;
@@ -1372,7 +1385,7 @@ void AliAnalysisTaskSELc2V0bachelorTMVAApp::MakeAnalysisForLc2prK0S(AliAODEvent 
 	  }
 	}
 	else if (fKeepingOnlyPYTHIABkg){
-	  // we have decided to fill the background only when the candidate has the daugthers that all come from HIJING underlying event!
+	  // we have decided to fill the background only when the candidate has the daugthers that all come from PYTHIA underlying event!
 	  AliAODTrack *bachelor = (AliAODTrack*)lcK0spr->GetBachelor();
 	  AliAODTrack *v0pos = (AliAODTrack*)lcK0spr->Getv0PositiveTrack();
 	  AliAODTrack *v0neg = (AliAODTrack*)lcK0spr->Getv0NegativeTrack();
@@ -1678,9 +1691,11 @@ void AliAnalysisTaskSELc2V0bachelorTMVAApp::FillLc2pK0Sspectrum(AliAODRecoCascad
   Double_t ptLcMC = -1;
   Double_t weightPythia = -1, weight5LHC13d3 = -1, weight5LHC13d3Lc = -1; 
 
+  AliAODMCParticle *partLcMC = 0x0;
+  
   if (fUseMCInfo) {
     if (iLctopK0s >= 0) {
-      AliAODMCParticle *partLcMC = (AliAODMCParticle*)mcArray->At(iLctopK0s);
+      partLcMC = (AliAODMCParticle*)mcArray->At(iLctopK0s);
       ptLcMC = partLcMC->Pt();
       //Printf("--------------------- Reco pt = %f, MC particle pt = %f", part->Pt(), ptLcMC);
       weightPythia = fFuncWeightPythia->Eval(ptLcMC);
@@ -1791,7 +1806,6 @@ void AliAnalysisTaskSELc2V0bachelorTMVAApp::FillLc2pK0Sspectrum(AliAODRecoCascad
     
     signd0 = signd0*TMath::Abs(d0z0bach[0]);
     
-    
     if (fUseMCInfo) {   //  save full tree if on MC
       fCandidateVariables[0] = invmassLc;
       fCandidateVariables[1] = invmassLc2Lpi;
@@ -1842,7 +1856,11 @@ void AliAnalysisTaskSELc2V0bachelorTMVAApp::FillLc2pK0Sspectrum(AliAODRecoCascad
       fCandidateVariables[44] = countTreta1corr;
       fCandidateVariables[45] = signd0;
       fCandidateVariables[46] = fCentrality;
-      fCandidateVariables[47] = fNTracklets_All;      
+      fCandidateVariables[47] = fNTracklets_All;
+      if (partLcMC) 
+	fCandidateVariables[48] = fUtils->CheckOrigin(mcArray, partLcMC, kTRUE);
+      else
+	fCandidateVariables[48] = -1;
     }      
     else { //remove MC-only variables from tree if data
       fCandidateVariables[0] = invmassLc;

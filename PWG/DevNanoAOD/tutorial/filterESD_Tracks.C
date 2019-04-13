@@ -1,5 +1,3 @@
-#include "../AddTaskNanoAODFilter.C"
-
 void filterESD_Tracks()
 {
   AliAnalysisManager* mgr = new AliAnalysisManager("NanoAOD Filter", "NanoAOD filter for nanoAOD production");
@@ -13,35 +11,27 @@ void filterESD_Tracks()
   mgr->SetOutputEventHandler(aodOutputHandler);
   
   // Physics selection
-  gROOT->LoadMacro("$ALICE_PHYSICS/OADB/macros/AddTaskPhysicsSelection.C");
-  AddTaskPhysicsSelection();
+  gInterpreter->ExecuteMacro("$ALICE_PHYSICS/OADB/macros/AddTaskPhysicsSelection.C");
   
   // Multiplicity selection
-  gROOT->LoadMacro("$ALICE_PHYSICS/OADB/COMMON/MULTIPLICITY/macros/AddTaskMultSelection.C");
-  AddTaskMultSelection();
+  gInterpreter->ExecuteMacro("$ALICE_PHYSICS/OADB/COMMON/MULTIPLICITY/macros/AddTaskMultSelection.C");
   
   // PID response
-  //gROOT->LoadMacro("$ALICE_ROOT/ANALYSIS/macros/AddTaskPIDResponse.C");
-  //AliAnalysisTaskPIDResponse* taskPID = AddTaskPIDResponse(kFALSE);
+  gInterpreter->ExecuteMacro("$ALICE_ROOT/ANALYSIS/macros/AddTaskPIDResponse.C");
 
   // OCDB
-  gROOT->LoadMacro("$ALICE_PHYSICS/PWGPP/TPC/macros/AddTaskConfigOCDB.C");
-  AddTaskConfigOCDB("raw://");
+  gInterpreter->ExecuteMacro("$ALICE_PHYSICS/PWGPP/TPC/macros/AddTaskConfigOCDB.C(\"raw://\")");
   
   // ESD filter
-  gROOT->LoadMacro("$ALICE_ROOT/ANALYSIS/ESDfilter/macros/AddTaskESDFilter.C");
-  AddTaskESDFilter(kFALSE, kFALSE, kFALSE, kTRUE, kFALSE, kFALSE, kFALSE, kFALSE, 1500, 3, kFALSE, kFALSE, kFALSE, kFALSE);
+  gInterpreter->ExecuteMacro("$ALICE_ROOT/ANALYSIS/ESDfilter/macros/AddTaskESDFilter.C(kFALSE, kFALSE, kFALSE, kTRUE, kFALSE, kFALSE, kFALSE, kFALSE, 1500, 3, kTRUE, kFALSE, kFALSE, kFALSE)");
   
-  AliAnalysisTaskNanoAODFilter* task = (AliAnalysisTaskNanoAODFilter*) AddTaskNanoAODFilter(0, kFALSE);
+  AliAnalysisTaskNanoAODFilter* task = (AliAnalysisTaskNanoAODFilter*) gInterpreter->ExecuteMacro("$ALICE_PHYSICS/PWG/DevNanoAOD/AddTaskNanoAODFilter.C(0, kFALSE)");
   task->AddSetter(new AliNanoAODSimpleSetter);
+  task->SelectCollisionCandidates(AliVEvent::kAny);
   
   // Event selection
-  // filter bit
-  task->SelectCollisionCandidates(AliVEvent::kINT7);
-  
   AliAnalysisNanoAODEventCuts* evtCuts = new AliAnalysisNanoAODEventCuts;
-  evtCuts->SetVertexRange(8);
-  evtCuts->SetCutPileUpMV(kTRUE);
+  // NOTE filter bit set in AliEventCuts automatically
 
   // Track selection
   AliAnalysisNanoAODTrackCuts* trkCuts = new AliAnalysisNanoAODTrackCuts;
@@ -57,7 +47,7 @@ void filterESD_Tracks()
   task->SetVarListTrack("pt,theta,phi");
 
   task->SetTrkCuts(trkCuts);
-  task->SetEvtCuts(evtCuts);
+  task->AddEvtCuts(evtCuts);
 
   mgr->SetDebugLevel(1); // enable debug printouts
   if (!mgr->InitAnalysis()) 

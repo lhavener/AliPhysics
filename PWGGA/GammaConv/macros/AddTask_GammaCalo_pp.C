@@ -1392,9 +1392,9 @@ void AddTask_GammaCalo_pp(
   } else if (trainConfig ==806){//Comparing CellQA Config from GammaConv
     cuts.AddCutCalo("00010113","2446600000012300000","0163103100000010"); // INT7
   } else if (trainConfig ==807){//Non Lin Studies
-    cuts.AddCutCalo("00010113","2446600000013300000","0163103100000010"); // INT7
-    cuts.AddCutCalo("00010113","2446611000013300000","0163103100000010"); // INT7 //case 11=> FunctionNL_kSDM
-    cuts.AddCutCalo("00010113","2446621000013300000","0163103100000010"); // INT7 //case 21=> unctionNL_DPOW
+    cuts.AddCutCalo("00010113","2446600044012300000","0163103100000010"); // INT7
+    cuts.AddCutCalo("00010113","2446611044012300000","0163103100000010"); // INT7 //case 11=> FunctionNL_kSDM
+    cuts.AddCutCalo("00010113","2446621044012300000","0163103100000010"); // INT7 //case 21=> unctionNL_DPOW
 
 
   // *********************************************************************************************************
@@ -1611,6 +1611,10 @@ void AddTask_GammaCalo_pp(
     TString caloCutPos = cuts.GetClusterCut(i);
     caloCutPos.Resize(1);
     TString TrackMatcherName = Form("CaloTrackMatcher_%s_%i",caloCutPos.Data(),trackMatcherRunningMode);
+    if(corrTaskSetting.CompareTo("")){
+      TrackMatcherName = TrackMatcherName+"_"+corrTaskSetting.Data();
+      cout << "Using separate track matcher for correction framework setting: " << TrackMatcherName.Data() << endl;
+    }
     if( !(AliCaloTrackMatcher*)mgr->GetTask(TrackMatcherName.Data()) ){
       AliCaloTrackMatcher* fTrackMatcher = new AliCaloTrackMatcher(TrackMatcherName.Data(),caloCutPos.Atoi(),trackMatcherRunningMode);
       fTrackMatcher->SetV0ReaderName(V0ReaderName);

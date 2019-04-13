@@ -11,6 +11,7 @@ ClassImp(AliSigma0PhotonMotherCuts)
       fHistograms(nullptr),
       fHistogramsMC(nullptr),
       fIsMC(false),
+      fDoCleanUp(true),
       fIsLightweight(false),
       fIsSpectrumAnalysis(true),
       fInputEvent(nullptr),
@@ -117,6 +118,7 @@ AliSigma0PhotonMotherCuts::AliSigma0PhotonMotherCuts(
       fHistograms(nullptr),
       fHistogramsMC(nullptr),
       fIsMC(false),
+      fDoCleanUp(true),
       fIsLightweight(false),
       fIsSpectrumAnalysis(true),
       fInputEvent(nullptr),
@@ -244,8 +246,10 @@ void AliSigma0PhotonMotherCuts::SelectPhotonMother(
         (AliV0ReaderV1 *)AliAnalysisManager::GetAnalysisManager()->GetTask(
             fV0ReaderName.Data());
   }
-
+  
+  if (fDoCleanUp) {
   CleanUpClones(photonCandidates, lambdaCandidates);
+  }
 
   if (!fIsLightweight) SingleV0QA(photonCandidates, lambdaCandidates);
 
@@ -406,7 +410,7 @@ void AliSigma0PhotonMotherCuts::CleanUpClones(
       if (hasSameLabels) {
         const float cpaPhoton = photon->GetCosineAlpha();
         const float cpaLambda = lambda->GetCosineAlpha();
-        ++nPhotonKilledLabel;
+        ++nPhotonLambdaKilledLabel;
         if (cpaPhoton > cpaLambda) {
           lambda->SetUse(false);
         } else {

@@ -4,7 +4,10 @@
 #include "AliAnalysisCuts.h"
 #include "AliNanoAODCustomSetter.h"
 #include "AliAnalysisUtils.h"
+#include "AliEventCuts.h"
 #include <map>
+
+class AliEventCuts;
 
 class AliAnalysisNanoAODTrackCuts : public AliAnalysisCuts
 {
@@ -31,14 +34,72 @@ private:
 class AliAnalysisNanoAODV0Cuts : public AliAnalysisCuts
 {
 public:
-  AliAnalysisNanoAODV0Cuts() {}
+  AliAnalysisNanoAODV0Cuts();
   virtual ~AliAnalysisNanoAODV0Cuts() {}
-  virtual Bool_t IsSelected(TObject* obj); // TObject should be an AliAODv0
+  virtual Bool_t IsSelected(TObject* obj);  // TObject should be an AliAODv0
   virtual Bool_t IsSelected(TList*   /* list */ ) { return kTRUE; }
 
+  void SetOnFlyStatus(Bool_t flyStat)                { fSelectOnFly = true; fOnFlyStatus = flyStat; }
+  void Setv0pTMin(Float_t pTMin)                     { fv0pTMin = pTMin;  }
+  void Setv0EtaMax(Float_t EtaMax)                   { fv0EtaMax = EtaMax; }
+  void SetTransverseRadius(Float_t min, Float_t max) { fTransverseRadiusMin = min; fTransverseRadiusMax = max; }
+  void SetCPAMin(Float_t CPAMin)                     { fCPAMin = CPAMin; }
+  void SetMaxDCADaughtersToV0Vtx(Float_t MaxDCA)     { fDCADaugv0VtxMax = MaxDCA; }
+  void SetMinDCADaughtersToPrimVtx(Float_t MinDCA)   { fDCADaugPrimVtxMin = MinDCA; }
+  void SetDaughterEtaMax(Float_t EtaMax)             { fDaughEtaMax = EtaMax; }
+  void SetMinClsTPCDaughters(int minCls)             { fDaugMinClsTPC = minCls; }
+  void SetLambdaDaugnSigTPCMax(Float_t maxnSig)      { fLambdaDaugnSigTPCMax = maxnSig; }
+  void SetRequireTimingDaughters(Bool_t require)     { fCheckDaughterPileup = require; }
+  
 private:
+  Bool_t fSelectOnFly;
+  Bool_t fOnFlyStatus;
+  Float_t fv0pTMin;
+  Float_t fv0EtaMax;
+  Float_t fTransverseRadiusMin;
+  Float_t fTransverseRadiusMax;
+  Float_t fCPAMin;
+  Float_t fDCADaugv0VtxMax;
+  Float_t fDCADaugPrimVtxMin;
+  Float_t fDaughEtaMax;
+  Int_t fDaugMinClsTPC;
+  Float_t fLambdaDaugnSigTPCMax;
+  Bool_t fCheckDaughterPileup;
 
   ClassDef(AliAnalysisNanoAODV0Cuts, 1); // track cut object for nano AOD filtering
+};
+
+
+class AliAnalysisNanoAODCascadeCuts : public AliAnalysisCuts
+{
+ public:
+  AliAnalysisNanoAODCascadeCuts();
+  virtual ~AliAnalysisNanoAODCascadeCuts() {};
+  virtual Bool_t IsSelected(TObject* obj);  // TObject should be an AliAODCascade
+  virtual Bool_t IsSelected(TList*   /* list */ )   { return kTRUE; }
+  void SetCascpTMin(Float_t pTMin)                  { fCascpTMin = pTMin;  }
+  void SetMinDCADaughtersToPrimVtx(Float_t MinDCA)  { fDCADaugPrimVtxMin = MinDCA; }
+  void SetCPACascMin(Float_t CPAMin)                { fCPACascMin = CPAMin; }
+  void SetCascTransverseRadiusMax(Float_t Max)      { fTransverseRadiusCasc = Max; }
+  void SetCPAv0Min(Float_t CPAMin)                  { fCPAv0Min = CPAMin; }
+  void Setv0TransverseRadiusMax(Float_t Max)        { fTransverseRadiusv0 = Max; }
+  void SetMinDCAv0ToPrimVtx(Float_t MinDCA)         { fDCAv0PrimVtxMin = MinDCA; }
+  void SetDaughterEtaMax(Float_t EtaMax)            { fDaughEtaMax = EtaMax; }
+  void SetLambdaDaugnSigTPCMax(Float_t maxnSig)     { fCascDaugnSigTPCMax = maxnSig; }
+  void SetRequireTimingDaughters(Bool_t require)    { fCheckDaughterPileup = require; }
+ private:
+  Float_t fCascpTMin;
+  Float_t fDCADaugPrimVtxMin;
+  Float_t fCPACascMin;
+  Float_t fTransverseRadiusCasc;
+  Float_t fCPAv0Min;
+  Float_t fTransverseRadiusv0;
+  Float_t fDCAv0PrimVtxMin;
+  Float_t fDaughEtaMax;
+  Float_t fCascDaugnSigTPCMax;
+  bool fCheckDaughterPileup;
+
+  ClassDef(AliAnalysisNanoAODCascadeCuts, 1); // track cut object for nano AOD filtering
 };
 
 class AliAnalysisNanoAODEventCuts : public AliAnalysisCuts
@@ -49,23 +110,15 @@ public:
   virtual Bool_t IsSelected(TObject* obj); // TObject should be an AliAODEvent
   virtual Bool_t IsSelected(TList*   /* list */ ) { return kTRUE; }
   
-  Float_t GetVertexRange() { return fVertexRange; }
-  void SetVertexRange (Float_t var) { fVertexRange = var;}
-  
   void SetMultiplicityRange(AliAnalysisCuts* cutObject, Int_t minMultiplicity, Int_t maxMultiplicity) { fTrackCut = cutObject; fMinMultiplicity = minMultiplicity; fMaxMultiplicity = maxMultiplicity; }
-  
-  AliAnalysisUtils* GetAnalysisUtils() { return fAnalysisUtils; }
-  void SetCutPileUpMV(Bool_t flag) { fCutPileUpMV = flag; }
+  AliEventCuts& GetAliEventCuts() { return fEventCuts; }
   
 private:
-  Float_t fVertexRange; // Only events with primary vertex within this range are accepted (whatever the vertex)
-  
   AliAnalysisCuts* fTrackCut; // track cut object for multiplicity cut
   Int_t fMinMultiplicity;   // minimum number of tracks to accept this event
   Int_t fMaxMultiplicity;   // maximal number of tracks to accept this event
   
-  AliAnalysisUtils* fAnalysisUtils; // AnalysisUtils object
-  Bool_t fCutPileUpMV;      // Use fAnalysisUtils->IsPileUpMV to remove pile up. Customize by using GetAnalysisUtils()
+  AliEventCuts fEventCuts; // AliEventCut object for Run 2
   
   ClassDef(AliAnalysisNanoAODEventCuts, 3); // event cut object for nano AOD filtering
 };
@@ -73,7 +126,7 @@ private:
 class AliNanoAODSimpleSetter : public AliNanoAODCustomSetter
 {
 public:
-  AliNanoAODSimpleSetter() : fInitialized(kFALSE) {;}
+  AliNanoAODSimpleSetter() : fInitialized(kFALSE), fMultMap() {;}
   virtual ~AliNanoAODSimpleSetter(){;}
 
   virtual void SetNanoAODHeader(const AliAODEvent * event   , AliNanoAODHeader * head ,TString varListHeader  );

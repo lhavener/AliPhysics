@@ -55,17 +55,17 @@ AliAnalysisTaskDCArStudy::~AliAnalysisTaskDCArStudy()
 void AliAnalysisTaskDCArStudy::AddOutput()
 {    
     //dcar:pt:mult:mcinfo
-    AddAxis("DCAxy",10000,-1,1);
+    AddAxis("DCAxy",5000,-1,1);
     AddAxis("pt");    
-    AddAxis("nTracks","mult6kfine");
+    AddAxis("nTracks","mult6kcoarse");
     AddAxis("MCinfo",3,-0.5,2.5); // 0=prim, 1=decay 2=material
     fHistDCA = CreateHist("fHistDCA");
     fOutputList->Add(fHistDCA);
     
     //dcar:pt:mult:mcinfo
-    AddAxis("DCAxy",10000,-20,20); 
+    AddAxis("DCAxy",5000,-20,20); 
     AddAxis("TPCpt","pt");    
-    AddAxis("nTracks","mult6kfine");
+    AddAxis("nTracks","mult6kcoarse");
     AddAxis("MCinfo",3,-0.5,2.5); // 0=prim, 1=decay 2=material
     fHistDCATPC = CreateHist("fHistDCATPC");
     fOutputList->Add(fHistDCATPC);
@@ -81,8 +81,8 @@ void AliAnalysisTaskDCArStudy::AnaEvent()
    InitEvent();
    InitEventMult();
    InitEventCent();
-   InitMCEvent();
-   LoopOverAllTracks();
+   InitMCEvent();   
+   if (fEventCutsPassed) LoopOverAllTracks();
    
 }
 
@@ -100,7 +100,7 @@ void AliAnalysisTaskDCArStudy::AnaTrack()
 
 //_____________________________________________________________________________
 
-AliAnalysisTaskDCArStudy* AliAnalysisTaskDCArStudy::AddTaskDCArStudy(const char* name) 
+AliAnalysisTaskDCArStudy* AliAnalysisTaskDCArStudy::AddTaskDCArStudy(const char* name, const char* outfile) 
 {
     AliAnalysisManager *mgr = AliAnalysisManager::GetAnalysisManager();
     if (!mgr) {
@@ -117,13 +117,12 @@ AliAnalysisTaskDCArStudy* AliAnalysisTaskDCArStudy::AddTaskDCArStudy(const char*
     
     // Setup output file
     //===========================================================================
-    TString fileName = AliAnalysisManager::GetCommonFileName();
-    //fileName += ":TaskDCArStudy";      // create a subfolder in the file
-    fileName = TString("out_");
-    fileName += name;
-    fileName += ".root";
-    //if (outfile) fileName = TString(outfile);
-    
+    TString fileName = AliAnalysisManager::GetCommonFileName();        
+    fileName += ":";
+    fileName += name;  // create a subfolder in the file
+    if (outfile) { // if a finename is given, use that one
+        fileName = TString(outfile);        
+    }
 
     // create the task
     //===========================================================================

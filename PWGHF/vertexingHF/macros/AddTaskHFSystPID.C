@@ -1,11 +1,14 @@
 AliAnalysisTaskSEHFSystPID *AddTaskHFSystPID(int system = 0,
                                             bool readMC = false,
                                             TString trigClass = "",
-                                            AliVEvent::EOfflineTriggerTypes trigMask = AliVEvent::kINT7,
+                                            unsigned long long trigMask = AliVEvent::kINT7,
                                             TString outputSuffix = "_ppMB_kINT7",
                                             float nsigmafortag = 0.02,
                                             double fracdownsampl = 1.,
-                                            double ptmaxdownsampl = 0.) {
+                                            double ptmaxdownsampl = 0.,
+                                            double centmin = 0.,
+                                            double centmax = 100.,
+                                            int estim = AliAnalysisTaskSEHFSystPID::kCentOff) {
 
     AliAnalysisManager *mgr = AliAnalysisManager::GetAnalysisManager();
     if (!mgr) {
@@ -41,6 +44,9 @@ AliAnalysisTaskSEHFSystPID *AddTaskHFSystPID(int system = 0,
     task->SetESDtrackCuts(esdTrackCuts);
     task->SetNsigmaKaonForTagging(nsigmafortag);
     if(fracdownsampl<1.)task->EnableDownSampling(fracdownsampl,ptmaxdownsampl);
+    task->SetCentralityEstimator(estim);
+    task->SetCentralityLimits(centmin,centmax);
+    task->SetfFillTreeWithNsigmaPIDOnly();
     mgr->AddTask(task);
 
     TString outputfile = AliAnalysisManager::GetCommonFileName();

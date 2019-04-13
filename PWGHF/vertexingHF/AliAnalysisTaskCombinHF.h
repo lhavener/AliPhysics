@@ -38,7 +38,8 @@ public:
   virtual void FinishTaskOutput();
   
   void SetReadMC(Bool_t read){fReadMC=read;}
-
+  void UseOnlySignalInMC(Bool_t opt){fSignalOnlyMC=opt;}
+    
   void SetEventMixingWithCuts(Double_t maxDeltaVz, Double_t maxDeltaMult){
     fDoEventMixing=2; fMaxzVertDistForMix=maxDeltaVz; fMaxMultDiffForMix=maxDeltaMult;
   }
@@ -143,7 +144,8 @@ private:
   Double_t CosPiKPhiRFrame(TLorentzVector* dauK1, TLorentzVector* dauK2, TLorentzVector* daupi) const;
   Double_t CosPiDsLabFrame(TLorentzVector* dauK1, TLorentzVector* dauK2, TLorentzVector* daupi) const;
 
-  TList   *fOutput; //!<! list send on output slot 0
+  TList *fOutput;             //!<! list with output histograms
+  TList *fListCuts;           //!<! list with cut values 
   TH1F *fHistNEvents;         //!<!hist. for No. of events
   TH2F *fHistEventMultCent;     //!<!hist. for evnt Mult vs. centrality
   TH2F *fHistEventMultZv;       //!<!hist. of evnt Mult vs. Zv for all events
@@ -180,7 +182,7 @@ private:
   TH3F *fMassVsPtVsYMELSpp;   //!<! hist. of Y vs. Pt vs. Mass (mixedevents)
   TH3F *fMassVsPtVsYMELSmm;   //!<! hist. of Y vs. Pt vs. Mass (mixedevents)
   TH2F* fEventsPerPool;   //!<! hist with number of events per pool  
-  TH2F* fMixingsPerPool;    //!<! hist with number of mixings per pool  
+  TH2F* fMixingsPerPool;    //!<! hist with number of mixings per pool
   UInt_t fFilterMask; /// FilterMask
   AliESDtrackCuts* fTrackCutsAll; //// track selection
   AliESDtrackCuts* fTrackCutsPion; /// pion track selection
@@ -213,6 +215,7 @@ private:
   Bool_t  fReadMC;       ///  flag for access to MC
   Bool_t fGoUpToQuark;   /// flag for definition of c,b origin
   Int_t fFullAnalysis;   /// flag to set analysis level (0 is the fastest)
+  Bool_t fSignalOnlyMC;  /// flag to speed up the MC 
   
   Int_t    fPIDstrategy;   /// knSigma, kBayesianMaxProb, kBayesianThres
   Double_t fmaxPforIDPion; /// flag for upper p limit for id band for pion
@@ -243,7 +246,7 @@ private:
   TObjArray* fPionTracks; /// array of pion-compatible tracks (TLorentzVectors)
 
   /// \cond CLASSIMP
-  ClassDef(AliAnalysisTaskCombinHF,16); /// D0D+ task from AOD tracks
+  ClassDef(AliAnalysisTaskCombinHF,18); /// D0D+ task from AOD tracks
   /// \endcond
 };
 

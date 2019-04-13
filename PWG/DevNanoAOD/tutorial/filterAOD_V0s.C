@@ -1,5 +1,3 @@
-#include "../AddTaskNanoAODFilter.C"
-
 void filterAOD_V0s()
 {
   AliAnalysisManager* mgr = new AliAnalysisManager("NanoAOD Filter", "NanoAOD filter for nanoAOD production");
@@ -12,16 +10,12 @@ void filterAOD_V0s()
   aodOutputHandler->SetOutputFileName("AliAOD.NanoAOD.root");
   mgr->SetOutputEventHandler(aodOutputHandler);
   
-  AliAnalysisTaskNanoAODFilter* task = (AliAnalysisTaskNanoAODFilter*) AddTaskNanoAODFilter(0, kFALSE);
+  AliAnalysisTaskNanoAODFilter* task = (AliAnalysisTaskNanoAODFilter*) gInterpreter->ExecuteMacro("$ALICE_PHYSICS/PWG/DevNanoAOD/AddTaskNanoAODFilter.C(0, kFALSE)");
   task->AddSetter(new AliNanoAODSimpleSetter);
   
   // Event selection
-  // filter bit
-  task->SelectCollisionCandidates(AliVEvent::kINT7);
-  
   AliAnalysisNanoAODEventCuts* evtCuts = new AliAnalysisNanoAODEventCuts;
-  evtCuts->SetVertexRange(8);
-  evtCuts->SetCutPileUpMV(kTRUE);
+  // NOTE filter bit set in AliEventCuts automatically
 
   // Track selection
   AliAnalysisNanoAODTrackCuts* trkCuts = new AliAnalysisNanoAODTrackCuts;
@@ -37,10 +31,11 @@ void filterAOD_V0s()
   task->SetVarListTrack("pt,theta,phi");
 
   task->SetTrkCuts(trkCuts);
-  task->SetEvtCuts(evtCuts);
+  task->AddEvtCuts(evtCuts);
   
   // V0s
   task->SaveV0s(kTRUE, new AliAnalysisNanoAODV0Cuts);
+  task->SaveCascades(kTRUE, new AliAnalysisNanoAODCascadeCuts);
 
   mgr->SetDebugLevel(1); // enable debug printouts
   if (!mgr->InitAnalysis()) 

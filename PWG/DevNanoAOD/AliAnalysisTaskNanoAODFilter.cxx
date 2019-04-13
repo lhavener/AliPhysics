@@ -41,9 +41,7 @@
 #include "AliAODHandler.h"
 #include "AliNanoAODReplicator.h"
 #include "AliNanoAODTrackMapping.h"
-
-using std::cout;
-using std::endl;
+#include "AliNanoAODTrack.h"
 
 ClassImp(AliAnalysisTaskNanoAODFilter)
 
@@ -53,10 +51,9 @@ AliAnalysisTaskNanoAODFilter::AliAnalysisTaskNanoAODFilter() // All data members
 :AliAnalysisTaskSE(),
   fMCMode(0),
   fReplicator(0),
-  fEvtCuts(0),
-  fTrkCuts(0),
-  fV0Cuts(0),
-  fSaveCutsFlag(0),
+  fEvtCuts(),
+  fQAOutput(0),
+  fSaveCutsFlag(kFALSE),
   fInputArrayName(""),
   fOutputArrayName("")
 {
@@ -69,21 +66,19 @@ AliAnalysisTaskNanoAODFilter::AliAnalysisTaskNanoAODFilter(const char *name, Boo
    fMCMode(0),
    fReplicator(0),
    fEvtCuts(0),
-   fTrkCuts(0),
-   fV0Cuts(0),
+   fQAOutput(0),
    fSaveCutsFlag(saveCutsFlag),
    fInputArrayName(""),
    fOutputArrayName("")
 
 {
-  fReplicator = new AliNanoAODReplicator("NanoAODReplicator", "remove non interesting tracks, writes special tracks array tracks");
-  
   // Constructor
-  if(fSaveCutsFlag) {
-    DefineOutput(1, AliAnalysisCuts::Class());
-    DefineOutput(2, AliAnalysisCuts::Class());
-    DefineOutput(3, AliAnalysisCuts::Class());
-  }
+
+  fReplicator = new AliNanoAODReplicator("NanoAODReplicator", "remove non interesting tracks, writes special tracks array tracks");
+  fQAOutput = new TList();
+  fQAOutput->SetOwner(kTRUE); 
+  
+  DefineOutput(1, TList::Class());
 }
 
 //________________________________________________________________________
@@ -93,6 +88,8 @@ AliAnalysisTaskNanoAODFilter::~AliAnalysisTaskNanoAODFilter()
   // (the list is owner and will clean-up these histograms). Protect in PROOF case.
   
   delete fReplicator;
+  if (fQAOutput) 
+    delete fQAOutput;
 }
 
 //________________________________________________________________________
@@ -101,13 +98,10 @@ void AliAnalysisTaskNanoAODFilter::UserCreateOutputObjects()
   // Create histograms
   // Called once (on the worker node)
       
-  if(fSaveCutsFlag) {
-    if (fEvtCuts)
-      PostData(1, fEvtCuts); 
-    if (fTrkCuts)
-      PostData(2, fTrkCuts); 
-    if (fV0Cuts)
-      PostData(3, fV0Cuts);
+  if (fSaveCutsFlag) {
+    for (std::list<AliAnalysisCuts*>::iterator it = fEvtCuts.begin(); it != fEvtCuts.end(); ++it)
+      fQAOutput->Add(*it);
+    PostData(1, fQAOutput);
   }
 }
 
@@ -123,7 +117,6 @@ void AliAnalysisTaskNanoAODFilter::AddFilteredAOD(const char* aodfilename, const
     AliFatal("Cannot get extension");
   }
   
-  fReplicator->SetTrackCuts(fTrkCuts);
   fReplicator->SetMCMode(fMCMode);
      
   if (!fInputArrayName.IsNull()) fReplicator->SetInputArrayName(fInputArrayName);
@@ -166,7 +159,9 @@ void AliAnalysisTaskNanoAODFilter::UserExec(Option_t *)
   if (!lAODevent)
     AliFatal("No input event");
   
-  if(fEvtCuts && !fEvtCuts->IsSelected(lAODevent)) return;// FIXME: should event cuts be called here or in the branch replicator? Do we get duplicated events if we skip here (arrays not reset in the branch replicator?)
+  for (std::list<AliAnalysisCuts*>::iterator it = fEvtCuts.begin(); it != fEvtCuts.end(); ++it)
+    if (!((*it)->IsSelected(lAODevent))) 
+      return;
 
   AliAODHandler* handler = dynamic_cast<AliAODHandler*>(AliAnalysisManager::GetAnalysisManager()->GetOutputEventHandler());
   if ( handler ){
@@ -179,20 +174,23 @@ void AliAnalysisTaskNanoAODFilter::UserExec(Option_t *)
   }
 }
 
-
-//________________________________________________________________________
 void AliAnalysisTaskNanoAODFilter::Terminate(Option_t *) 
 {
-  // print some debug info
-
 }
 
 void AliAnalysisTaskNanoAODFilter::FinishTaskOutput() {
 
-  // We save here the user info //
+  // We save here the user info
 
   AliAODHandler* handler = dynamic_cast<AliAODHandler*>(AliAnalysisManager::GetAnalysisManager()->GetOutputEventHandler());
   AliAODExtension *extNanoAOD = handler->GetFilteredAOD("AliAOD.NanoAOD.root");
-  extNanoAOD->GetTree()->GetUserInfo()->Add(AliNanoAODTrackMapping::GetInstance());
+  extNanoAOD->GetTree()->GetUserInfo()->Add(AliNanoAODTrackMapping::GetInstance(fReplicator->GetVarListTrack()));
+}
 
+void AliAnalysisTaskNanoAODFilter::AddPIDField(AliNanoAODTrack::ENanoPIDResponse response, AliPID::EParticleType particle)
+{
+  TString list(fReplicator->GetVarListTrack());
+  list += ",";
+  list += AliNanoAODTrack::GetPIDVarName(response, particle);
+  fReplicator->SetVarListTrack(list);
 }

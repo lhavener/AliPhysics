@@ -61,6 +61,7 @@ AliAnalysisTaskMKBase::AliAnalysisTaskMKBase()
     , fMCb(-1)
     , fMCnPrim(-1)
     , fMCnPrimV0M(-1)
+    , fMCnTracks(-1)
     , fIsTrigger(kFALSE)
     , fHasVertex(kFALSE)
     , fIsIncompleteDAQ(kFALSE)
@@ -80,6 +81,9 @@ AliAnalysisTaskMKBase::AliAnalysisTaskMKBase()
     , fDCACov{0,0,0}
     , fDCAr(0)
     , fDCAz(0)
+    , fSigma1Pt2(0)
+    , fSigma1Pt(0)
+    , fSigned1Pt(0)
     , fMCParticle(0)
     , fMCLabel(0)
     , fMCPt(0)
@@ -90,6 +94,13 @@ AliAnalysisTaskMKBase::AliAnalysisTaskMKBase()
     , fMCisSecDecay(kFALSE)
     , fMCisSecMat(kFALSE)
     , fMCPrimSec(-1)
+    , fMCParticleType(AlidNdPtTools::kUndefined)
+    , fMCProdcutionType(AlidNdPtTools::kUnknown)
+    , fMCPDGCode(0)
+    , fMCCharge(-9999)
+    , fMCQ(-9999)
+    , fMCIsCharged(kFALSE)
+    , fMCChargeSign(-9999)
     , fInnerP(0)
     , fTPCinnerP(0)
     , fPtInner(0)
@@ -103,6 +114,7 @@ AliAnalysisTaskMKBase::AliAnalysisTaskMKBase()
     , fDCArTPC(0)
     , fDCAzTPC(0)
     , fEventCuts(0)
+    , fUseEventCuts(kFALSE)
     , fESDtrackCutsM(0)
     , fESDtrackCuts{0,0,0,0,0,0,0,0,0,0}
     , fAcceptTrack{kFALSE,kFALSE,kFALSE,kFALSE,kFALSE,kFALSE,kFALSE,kFALSE,kFALSE,kFALSE}
@@ -154,6 +166,7 @@ AliAnalysisTaskMKBase::AliAnalysisTaskMKBase(const char* name)
     , fMCb(-1)
     , fMCnPrim(-1)
     , fMCnPrimV0M(-1)
+    , fMCnTracks(-1)
     , fIsTrigger(kFALSE)
     , fHasVertex(kFALSE)
     , fIsIncompleteDAQ(kFALSE)
@@ -173,6 +186,9 @@ AliAnalysisTaskMKBase::AliAnalysisTaskMKBase(const char* name)
     , fDCACov{0,0,0}
     , fDCAr(0)
     , fDCAz(0)
+    , fSigma1Pt2(0)
+    , fSigma1Pt(0)
+    , fSigned1Pt(0)
     , fMCParticle(0)
     , fMCLabel(0)
     , fMCPt(0)
@@ -183,6 +199,13 @@ AliAnalysisTaskMKBase::AliAnalysisTaskMKBase(const char* name)
     , fMCisSecDecay(kFALSE)
     , fMCisSecMat(kFALSE)
     , fMCPrimSec(-1)
+    , fMCParticleType(AlidNdPtTools::kUndefined)
+    , fMCProdcutionType(AlidNdPtTools::kUnknown)    
+    , fMCPDGCode(0)
+    , fMCCharge(-9999)
+    , fMCQ(-9999)
+    , fMCIsCharged(kFALSE)
+    , fMCChargeSign(-9999)
     , fInnerP(0)
     , fTPCinnerP(0)
     , fPtInner(0)
@@ -196,6 +219,7 @@ AliAnalysisTaskMKBase::AliAnalysisTaskMKBase(const char* name)
     , fDCArTPC(0)
     , fDCAzTPC(0)
     , fEventCuts(0)
+    , fUseEventCuts(kFALSE)    
     , fESDtrackCutsM(0)
     , fESDtrackCuts{0,0,0,0,0,0,0,0,0,0}
     , fAcceptTrack{kFALSE,kFALSE,kFALSE,kFALSE,kFALSE,kFALSE,kFALSE,kFALSE,kFALSE,kFALSE}
@@ -317,7 +341,7 @@ Bool_t AliAnalysisTaskMKBase::ReadEvent()
         Err("noAliAnalysisManager");  
         fInputEventHandler = 0;
     } else {
-        fInputEventHandler = dynamic_cast<AliInputEventHandler*>(fAnalysisManager->GetInputEventHandler());        
+        fInputEventHandler = dynamic_cast<AliInputEventHandler*>(fAnalysisManager->GetInputEventHandler());
     }
     if (fInputEventHandler) { 
         fEventSelected = fInputEventHandler->IsEventSelected();
@@ -499,7 +523,7 @@ void AliAnalysisTaskMKBase::FillTriggerLog()
 Bool_t AliAnalysisTaskMKBase::InitMCEvent() 
 {
     if (!fIsMC) return kFALSE;
-    // set things related to mc like true multiplcities etc.
+    fMCnTracks = fMC->GetNumberOfTracks();
     return kTRUE;
 }
 
@@ -512,8 +536,6 @@ Bool_t AliAnalysisTaskMKBase::InitVZERO()
         Log("noVZEROData");
         return kFALSE;
     }
-    
-    
     return kTRUE;
 }
 
@@ -528,6 +550,12 @@ Bool_t AliAnalysisTaskMKBase::InitTrack()
     fESDTrack->GetImpactParameters(fDCA,fDCACov);
     fDCAr = fDCA[0];
     fDCAz = fDCA[1];
+    fSigma1Pt2 = fESDTrack->GetSigma1Pt2();
+    if (fSigma1Pt2 < 0) { 
+        Err("Sigma1Pt2<0");        
+    }
+    fSigma1Pt =  TMath::Sqrt(fSigma1Pt2);
+    fSigned1Pt = fESDTrack->GetSigned1Pt();
     return kTRUE;
 }
 
@@ -549,28 +577,15 @@ Bool_t AliAnalysisTaskMKBase::InitMCTrack()
     if (!fESDTrack) return kFALSE;
     if (!fMC) return kFALSE;
     
-    fMCLabel = TMath::Abs(fESDTrack->GetLabel());            
-    AliMCParticle* fMCParticle  = static_cast<AliMCParticle*>(fMC->GetTrack(fMCLabel));
+    fMCLabel = TMath::Abs(fESDTrack->GetLabel());
+    if (fMCLabel < 0) { Log("tracklabel<0"); }
+    fMCParticle  = static_cast<AliMCParticle*>(fMC->GetTrack(fMCLabel));
     if (!fMCParticle) { 
         Err("particleNOTinStack"); 
         return kFALSE;
     }    
     
-    fMCPt  = fMCParticle->Pt(); 
-    fMCEta = fMCParticle->Eta(); 
-    fMCPhi = fMCParticle->Phi(); 
-    
-    fMCisPrim     = fMC->IsPhysicalPrimary(fMCLabel);
-    fMCisSecDecay = fMC->IsSecondaryFromWeakDecay(fMCLabel);
-    fMCisSecMat   = fMC->IsSecondaryFromMaterial(fMCLabel);        
-    fMCisSec      = fMCisSecMat || fMCisSecDecay;
-    if (fMCisPrim)     { fMCPrimSec = 0; }
-    if (fMCisSecDecay) { fMCPrimSec = 1; }
-    if (fMCisSecMat)   { fMCPrimSec = 2; }
-    if (fMCPrimSec == -1)             { Err("NOTprimORsec"); }
-    if (fMCisPrim && fMCisSec)        { Err("primANDsec"); }    
-    if (fMCisSecDecay && fMCisSecMat) { Err("decayANDmat"); }   
-    return kTRUE;
+    return InitMCParticle();
 }
 
 //_____________________________________________________________________________
@@ -579,7 +594,38 @@ Bool_t AliAnalysisTaskMKBase::InitMCParticle()
 { 
      if (!fIsMC) return kFALSE;
     // set all mc particle related things
-     return kTRUE;
+     
+    fMCPt  = fMCParticle->Pt(); 
+    fMCEta = fMCParticle->Eta(); 
+    fMCPhi = fMCParticle->Phi(); 
+    fMCCharge =  fMCParticle->Charge();
+    fMCQ =  fMCCharge/3.0;    
+    if (fMCCharge == 0) {
+        fMCIsCharged = kFALSE;
+        fMCChargeSign = 0;
+    } else {
+        fMCIsCharged = kTRUE;
+        fMCChargeSign = (fMCCharge > 0)? +1 : -1;
+    }
+    
+    fMCisPrim     = fMC->IsPhysicalPrimary(fMCLabel);
+    
+    Bool_t isPhysPrimStack = fMCStack->IsPhysicalPrimary(fMCLabel);
+    if (fMCisPrim != isPhysPrimStack) { Log("PhysPrimMismatch"); }
+    
+    fMCisSecDecay = fMC->IsSecondaryFromWeakDecay(fMCLabel);
+    fMCisSecMat   = fMC->IsSecondaryFromMaterial(fMCLabel);        
+    fMCisSec      = fMCisSecMat || fMCisSecDecay;    
+    if (fMCisPrim)     { fMCPrimSec = 0; fMCProdcutionType = AlidNdPtTools::kPrim; }
+    if (fMCisSecDecay) { fMCPrimSec = 1; fMCProdcutionType = AlidNdPtTools::kSecDecay; }
+    if (fMCisSecMat)   { fMCPrimSec = 2; fMCProdcutionType = AlidNdPtTools::kSecMaterial; }
+    if (fMCPrimSec == -1)             { Err("NOTprimORsec"); }
+    if (fMCisPrim && fMCisSec)        { Err("primANDsec"); }
+    if (fMCisSecDecay && fMCisSecMat) { Err("decayANDmat"); }
+    fMCPDGCode = fMCParticle->PdgCode();
+    fMCParticleType = AlidNdPtTools::ParticleTypeFromPDG(fMCPDGCode);
+    
+    return kTRUE;
 }
 
 //_____________________________________________________________________________
@@ -709,8 +755,15 @@ void AliAnalysisTaskMKBase::LoopOverAllTracks()
 
 void AliAnalysisTaskMKBase::LoopOverAllParticles()
 {    
-    //to be implemented
+    fMCnTracks = fMC->GetNumberOfTracks();
+    for (Int_t i = 0; i < fMCnTracks; i++) {
+        fMCParticle  = static_cast<AliMCParticle*>(fMC->GetTrack(i));
+        if (!fMCParticle) { Err("noMCParticle"); continue; }         
+        fMCLabel = i;
+        AnaMCParticle();        
+    }
 }
+
 
 //_____________________________________________________________________________
 
@@ -735,29 +788,29 @@ void AliAnalysisTaskMKBase::FinishTaskOutput()
 ///
 /// \return the created task
 
-AliAnalysisTaskMKBase* AliAnalysisTaskMKBase::AddTaskMKBase(const char* name) 
+AliAnalysisTaskMKBase* AliAnalysisTaskMKBase::AddTaskMKBase(const char* name, const char* outfile) 
 {
     AliAnalysisManager *mgr = AliAnalysisManager::GetAnalysisManager();
     if (!mgr) {
-        ::Error("AddTaskPhysicsSelection", "No analysis manager to connect to.");
+        ::Error("AddTaskMKBase", "No analysis manager to connect to.");
         return 0;
     }
 
     // Check the analysis type using the event handlers connected to the analysis manager.
     //==============================================================================
     if (!mgr->GetInputEventHandler()) {
-        ::Error("AddTaskPhysicsSelection", "This task requires an input event handler");
+        ::Error("AddTaskMKBase", "This task requires an input event handler");
         return NULL;
     }
     
     // Setup output file
     //===========================================================================
-    TString fileName = AliAnalysisManager::GetCommonFileName();
-    //fileName += ":TaskMKBase";      // create a subfolder in the file
-    fileName = TString("out_");
-    fileName += name;
-    fileName += ".root";
-    //if (outfile) fileName = TString(outfile);
+    TString fileName = AliAnalysisManager::GetCommonFileName();        
+    fileName += ":";
+    fileName += name;  // create a subfolder in the file
+    if (outfile) { // if a finename is given, use that one
+        fileName = TString(outfile);
+    }
     
 
     // create the task

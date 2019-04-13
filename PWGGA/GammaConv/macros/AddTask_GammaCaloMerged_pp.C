@@ -992,6 +992,22 @@ void AddTask_GammaCaloMerged_pp(
     cuts.AddCutMergedCalo("00081113","111111106g032200000","111111106g022700001","0163300000000000"); // EOverPMax= 1.5
     cuts.AddCutMergedCalo("00081113","111111106h032200000","111111106h022700001","0163300000000000"); // hardest cut: EOverPMax= 1.25
 
+  } else if (trainConfig == 210){  // new standard
+    cuts.AddCutMergedCalo("00010113","111111106f032200000","111111106f022700001","0163300000000000"); // INT7
+    cuts.AddCutMergedCalo("00052113","111111106f032200000","111111106f022700001","0163300000000000"); // EMC7
+    cuts.AddCutMergedCalo("00081113","111111106f032200000","111111106f022700001","0163300000000000"); // EGA
+  } else if (trainConfig == 211){  // new standard with TB NL
+    cuts.AddCutMergedCalo("00010113","111116506f032200000","111116506f022700001","0163300000000000"); // INT7
+    cuts.AddCutMergedCalo("00052113","111116506f032200000","111116506f022700001","0163300000000000"); // EMC7
+    cuts.AddCutMergedCalo("00081113","111116506f032200000","111116506f022700001","0163300000000000"); // EGA
+  } else if (trainConfig == 212){  // new standard with exotic cut 0.97
+    cuts.AddCutMergedCalo("00010113","111111106f532200000","111111106f522700001","0163300000000000"); // INT7
+    cuts.AddCutMergedCalo("00052113","111111106f532200000","111111106f522700001","0163300000000000"); // EMC7
+    cuts.AddCutMergedCalo("00081113","111111106f532200000","111111106f522700001","0163300000000000"); // EGA
+  } else if (trainConfig == 213){  // new standard with exotic cut 0.97 and open M02>0.1
+    cuts.AddCutMergedCalo("00010113","111111106f532200000","111111106f522900001","0163300000000000"); // INT7
+    cuts.AddCutMergedCalo("00052113","111111106f532200000","111111106f522900001","0163300000000000"); // EMC7
+    cuts.AddCutMergedCalo("00081113","111111106f532200000","111111106f522900001","0163300000000000"); // EGA
 
   } else if (trainConfig == 250){  // EMCAL clusters 7 TeV LHC11 TM on
     cuts.AddCutMergedCalo("00010113","1111100067032200000","1111100067022700001","0163300000000000"); // INT7
@@ -1124,6 +1140,14 @@ void AddTask_GammaCaloMerged_pp(
     cuts.AddCutMergedCalo("00010113","4117911060032200000","4117911060022700001","0163300000000000"); // INT7
     cuts.AddCutMergedCalo("000a1113","4117911060032200000","4117911060022700001","0163300000000000"); // EMC7
     cuts.AddCutMergedCalo("000a2113","4117911060032200000","4117911060022700001","0163300000000000"); // EG2
+  } else if (trainConfig == 484){ // no TM - CALO+CALOFAST triggers with exotics cut 0.97
+    cuts.AddCutMergedCalo("00010113","4117911060532200000","4117911060522700001","0163300000000000"); // INT7
+    cuts.AddCutMergedCalo("000a1113","4117911060532200000","4117911060522700001","0163300000000000"); // EMC7
+    cuts.AddCutMergedCalo("000a2113","4117911060532200000","4117911060522700001","0163300000000000"); // EG2
+  } else if (trainConfig == 485){ // no TM - CALO+CALOFAST triggers with exotics cut 0.97 and open M02 (>0.1)
+    cuts.AddCutMergedCalo("00010113","4117911060532200000","4117911060522900001","0163300000000000"); // INT7
+    cuts.AddCutMergedCalo("000a1113","4117911060532200000","4117911060522900001","0163300000000000"); // EMC7
+    cuts.AddCutMergedCalo("000a2113","4117911060532200000","4117911060522900001","0163300000000000"); // EG2
 
   //Analysis cuts pp 8 TeV with TPC, no TM, +-50ns, Nico TB NL
   } else if (trainConfig == 1400){
@@ -1248,6 +1272,10 @@ void AddTask_GammaCaloMerged_pp(
     TString caloCutPos = cuts.GetClusterCut(i);
     caloCutPos.Resize(1);
     TString TrackMatcherName = Form("CaloTrackMatcher_%s_%i",caloCutPos.Data(),trackMatcherRunningMode);
+    if(corrTaskSetting.CompareTo("")){
+      TrackMatcherName = TrackMatcherName+"_"+corrTaskSetting.Data();
+      cout << "Using separate track matcher for correction framework setting: " << TrackMatcherName.Data() << endl;
+    }
     if( !(AliCaloTrackMatcher*)mgr->GetTask(TrackMatcherName.Data()) ){
       AliCaloTrackMatcher* fTrackMatcher = new AliCaloTrackMatcher(TrackMatcherName.Data(),caloCutPos.Atoi(),trackMatcherRunningMode);
       fTrackMatcher->SetV0ReaderName(V0ReaderName);

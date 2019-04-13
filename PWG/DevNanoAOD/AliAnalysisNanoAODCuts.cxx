@@ -8,9 +8,11 @@
 #include "AliAnalysisManager.h"
 #include "AliInputEventHandler.h"
 #include "AliAODv0.h"
+#include "AliEventCuts.h"
 
 ClassImp(AliAnalysisNanoAODTrackCuts)
 ClassImp(AliAnalysisNanoAODV0Cuts)
+ClassImp(AliAnalysisNanoAODCascadeCuts)
 ClassImp(AliAnalysisNanoAODEventCuts)
 ClassImp(AliNanoAODSimpleSetter)
 
@@ -32,62 +34,306 @@ Bool_t AliAnalysisNanoAODTrackCuts::IsSelected(TObject* obj)
   if (TMath::Abs(track->Eta()) > fMaxEta) return kFALSE; 
   
   return kTRUE;  
-
 }
 
-Bool_t AliAnalysisNanoAODV0Cuts::IsSelected(TObject* obj)
+AliAnalysisNanoAODV0Cuts::AliAnalysisNanoAODV0Cuts()
+    : AliAnalysisCuts(),
+      fSelectOnFly(false),
+      fOnFlyStatus(false),
+      fv0pTMin(-1),
+      fv0EtaMax(-1),
+      fTransverseRadiusMin(-1),
+      fTransverseRadiusMax(-1),
+      fCPAMin(-1),
+      fDCADaugv0VtxMax(-1),
+      fDCADaugPrimVtxMin(-1),
+      fDaughEtaMax(-1),
+      fDaugMinClsTPC(-1),
+      fLambdaDaugnSigTPCMax(-1),
+      fCheckDaughterPileup(kFALSE)
 {
-  // Returns true if the track is good!
-  // TODO this is only an example implementation.
-
-  AliAODv0* track = static_cast<AliAODv0*>(obj);
-  
-  if (TMath::Abs(track->DcaV0ToPrimVertex() > 10))
-    return kFALSE;
-  
-  return kTRUE;  
 }
+
+Bool_t AliAnalysisNanoAODV0Cuts::IsSelected(TObject* obj) 
+{
+  // V0 selection
+  
+  AliAODv0* v0 = dynamic_cast<AliAODv0*>(obj);
+  if (!v0)
+    AliFatal("Did not pass a V0");
+
+  if (v0->GetNProngs() != 2)
+    return false;
+
+  if (v0->GetNDaughters() != 2)
+    return false;
+
+  if (fSelectOnFly && v0->GetOnFlyStatus() == fOnFlyStatus)
+    return false;
+
+  if (fv0pTMin > 0 && v0->Pt() < fv0pTMin)
+    return false;
+
+  if (fv0EtaMax > 0 && TMath::Abs(v0->Eta()) > fv0EtaMax)
+    return false;
+
+  if (fTransverseRadiusMin > 0 || fCPAMin > 0) {
+    const AliAODEvent* evt = static_cast<const AliAODEvent*>(static_cast<AliAODTrack *>(v0->GetDaughter(0))->GetEvent());
+    if (!evt)
+      AliFatal("No event but cut on transverse radius or/and pointing angle requested");
+
+    Float_t xvP = evt->GetPrimaryVertex()->GetX();
+    Float_t yvP = evt->GetPrimaryVertex()->GetY();
+    Float_t zvP = evt->GetPrimaryVertex()->GetZ();
+    Double_t vecTarget[3] = { xvP, yvP, zvP };
+    Float_t TransverseRadius = v0->DecayLengthXY(vecTarget);
+    if (TransverseRadius > fTransverseRadiusMax || TransverseRadius < fTransverseRadiusMin)
+      return false;
+    if (fCPAMin > 0 && v0->CosPointingAngle(vecTarget) > fCPAMin)
+      return false;
+  }
+  
+  if (fDCADaugv0VtxMax > 0 && v0->DcaV0Daughters() > fDCADaugv0VtxMax)
+    return false;
+  if (fDCADaugPrimVtxMin > 0 && (v0->DcaPosToPrimVertex() < fDCADaugPrimVtxMin || v0->DcaNegToPrimVertex() < fDCADaugPrimVtxMin))
+    return false;
+
+  //TODO: For the preselection it does not matter if the assignment positive and
+  //negative is correct, during creation of the Nano AOD this should be checked
+  AliAODTrack *pTrack = static_cast<AliAODTrack *>(v0->GetDaughter(0));
+  AliAODTrack *nTrack = static_cast<AliAODTrack *>(v0->GetDaughter(1));
+  if (fDaughEtaMax > 0 && (TMath::Abs(pTrack->Eta()) > fDaughEtaMax || TMath::Abs(nTrack->Eta()) > fDaughEtaMax))
+    return false;
+    
+  if (fDaugMinClsTPC > 0 && (pTrack->GetTPCNcls() < fDaugMinClsTPC || nTrack->GetTPCNcls() < fDaugMinClsTPC))
+    return false;
+
+  if (fLambdaDaugnSigTPCMax > 0) {
+    static AliPIDResponse* pidResponse = 0;
+    if (!pidResponse) {
+      AliAnalysisManager *man = AliAnalysisManager::GetAnalysisManager();
+      AliInputEventHandler* inputHandler = (AliInputEventHandler*) (man->GetInputEventHandler());
+      pidResponse = inputHandler->GetPIDResponse();
+      if (!pidResponse)
+        AliFatal("No PID response but PID selection requested");
+    }
+    AliPIDResponse::EDetPidStatus statusPosTPC = pidResponse->CheckPIDStatus(AliPIDResponse::kTPC, pTrack);
+    AliPIDResponse::EDetPidStatus statusNegTPC = pidResponse->CheckPIDStatus(AliPIDResponse::kTPC, nTrack);
+    if (!(statusPosTPC == AliPIDResponse::kDetPidOk && statusNegTPC == AliPIDResponse::kDetPidOk))
+      return false;
+
+    Float_t nSigPosPion = pidResponse->NumberOfSigmas(AliPIDResponse::kTPC, pTrack, AliPID::kPion);
+    Float_t nSigPosProton = pidResponse->NumberOfSigmas(AliPIDResponse::kTPC, pTrack, AliPID::kProton);
+    Float_t nSigNegPion = pidResponse->NumberOfSigmas(AliPIDResponse::kTPC, nTrack, AliPID::kPion);
+    Float_t nSigNegProton = pidResponse->NumberOfSigmas(AliPIDResponse::kTPC, nTrack, AliPID::kProton);
+
+    // if the daughter tracks are not a proton or a pion within loose cuts, the candidate can be rejected
+    if (!((nSigPosPion < fLambdaDaugnSigTPCMax && nSigNegProton < fLambdaDaugnSigTPCMax) ||
+          (nSigNegPion < fLambdaDaugnSigTPCMax && nSigPosProton < fLambdaDaugnSigTPCMax)))
+      return false;
+  }
+  
+  if (fCheckDaughterPileup) {
+    if (!((pTrack->GetTOFBunchCrossing() == 0) || (nTrack->GetTOFBunchCrossing() == 0))) {
+      Bool_t PileUpPass = false;
+      for (Int_t iLay = 0; iLay < 6; ++iLay) {
+        //do not use SDD for Pile Up Rejection since detector is too slow
+        if (iLay == 2 || iLay == 3)
+          continue;
+
+        if (pTrack->HasPointOnITSLayer(iLay) || nTrack->HasPointOnITSLayer(iLay)) {
+          PileUpPass = true;
+          break;
+        }
+      }
+      if (!PileUpPass)
+        return false;
+    }
+  }
+  
+  return kTRUE;
+}
+
+AliAnalysisNanoAODCascadeCuts::AliAnalysisNanoAODCascadeCuts()
+    : AliAnalysisCuts(),
+      fCascpTMin(0.),
+      fDCADaugPrimVtxMin(0.),
+      fCPACascMin(0.),
+      fTransverseRadiusCasc(0.),
+      fCPAv0Min(0.),
+      fTransverseRadiusv0(0.),
+      fDCAv0PrimVtxMin(0.),
+      fDaughEtaMax(0.),
+      fCascDaugnSigTPCMax(0.),
+      fCheckDaughterPileup(false) {
+}
+
+Bool_t AliAnalysisNanoAODCascadeCuts::IsSelected(TObject* obj) {
+  AliAODcascade* cascade = dynamic_cast<AliAODcascade*>(obj);
+  if (!cascade)
+    AliFatal("Did not pass a Cascade");
+  TVector3 pCasc(cascade->MomXiX(), cascade->MomXiY(), cascade->MomXiZ());
+  if (fCascpTMin > 0. && pCasc.Pt() < fCascpTMin) {
+    return false;
+  }
+  if (fDCADaugPrimVtxMin > 0.
+      && cascade->DcaBachToPrimVertex() > fDCADaugPrimVtxMin) {
+    return false;
+  }
+
+  if (fDCADaugPrimVtxMin > 0.
+      && cascade->DcaNegToPrimVertex() > fDCADaugPrimVtxMin) {
+    return false;
+  }
+
+  if (fDCADaugPrimVtxMin > 0.
+      && cascade->DcaPosToPrimVertex() > fDCADaugPrimVtxMin) {
+    return false;
+  }
+  if (fCPACascMin > 0. || fCPAv0Min > 0.) {
+    const AliAODEvent* evt =
+        static_cast<const AliAODEvent*>(static_cast<AliAODTrack *>(cascade
+            ->GetDaughter(0))->GetEvent());
+    if (!evt)
+      AliFatal("No event but cut pointing angles requested");
+    Float_t xvP = evt->GetPrimaryVertex()->GetX();
+    Float_t yvP = evt->GetPrimaryVertex()->GetY();
+    Float_t zvP = evt->GetPrimaryVertex()->GetZ();
+    Double_t vecTarget[3] = { xvP, yvP, zvP };
+    if (fCPACascMin > 0.
+        && cascade->CosPointingAngleXi(xvP, yvP, zvP) < fCPACascMin) {
+      return false;
+    }
+    if (fCPAv0Min > 0.
+        && cascade->CosPointingAngle(evt->GetPrimaryVertex()) < fCPAv0Min) {
+      return false;
+    }
+  }
+  if (fTransverseRadiusCasc > 0.
+      && cascade->DecayVertexXiX() > fTransverseRadiusCasc) {
+    return false;
+  }
+  if (fTransverseRadiusCasc > 0.
+      && cascade->DecayVertexXiY() > fTransverseRadiusCasc) {
+    return false;
+  }
+  if (fTransverseRadiusv0 > 0.
+      && cascade->DecayVertexV0X() > fTransverseRadiusv0) {
+    return false;
+  }
+  if (fTransverseRadiusv0 > 0.
+      && cascade->DecayVertexV0Y() > fTransverseRadiusv0) {
+    return false;
+  }
+  if (fDCAv0PrimVtxMin > 0. && cascade->DcaV0ToPrimVertex()) {
+    return false;
+  }
+  AliAODTrack *pTrack = static_cast<AliAODTrack*>(cascade->GetDaughter(0));
+  AliAODTrack *nTrack = static_cast<AliAODTrack*>(cascade->GetDaughter(1));
+  AliAODTrack *bachTrack = static_cast<AliAODTrack*>(cascade->GetDecayVertexXi()
+      ->GetDaughter(0));
+  if (fDaughEtaMax > 0.) {
+    if (TMath::Abs(pTrack->Eta()) > fDaughEtaMax) {
+      return false;
+    }
+    if (TMath::Abs(nTrack->Eta()) > fDaughEtaMax) {
+      return false;
+    }
+    if (TMath::Abs(nTrack->Eta()) > fDaughEtaMax) {
+      return false;
+    }
+  }
+
+  if (fCascDaugnSigTPCMax > 0) {
+    static AliPIDResponse* pidResponse = 0;
+    if (!pidResponse) {
+      AliAnalysisManager *man = AliAnalysisManager::GetAnalysisManager();
+      AliInputEventHandler* inputHandler = (AliInputEventHandler*) (man
+          ->GetInputEventHandler());
+      pidResponse = inputHandler->GetPIDResponse();
+      if (!pidResponse)
+        AliFatal("No PID response but PID selection requested");
+    }
+    AliPIDResponse::EDetPidStatus statusPosTPC = pidResponse->CheckPIDStatus(
+        AliPIDResponse::kTPC, pTrack);
+    AliPIDResponse::EDetPidStatus statusNegTPC = pidResponse->CheckPIDStatus(
+        AliPIDResponse::kTPC, nTrack);
+    AliPIDResponse::EDetPidStatus statusBachTPC = pidResponse->CheckPIDStatus(
+        AliPIDResponse::kTPC, bachTrack);
+    if (!(statusPosTPC == AliPIDResponse::kDetPidOk
+        && statusNegTPC == AliPIDResponse::kDetPidOk
+        && statusBachTPC == AliPIDResponse::kDetPidOk))
+      return false;
+
+    Float_t nSigPosPion = pidResponse->NumberOfSigmas(AliPIDResponse::kTPC,
+                                                      pTrack, AliPID::kPion);
+    Float_t nSigPosProton = pidResponse->NumberOfSigmas(AliPIDResponse::kTPC,
+                                                        pTrack,
+                                                        AliPID::kProton);
+    Float_t nSigNegPion = pidResponse->NumberOfSigmas(AliPIDResponse::kTPC,
+                                                      nTrack, AliPID::kPion);
+    Float_t nSigNegProton = pidResponse->NumberOfSigmas(AliPIDResponse::kTPC,
+                                                        nTrack,
+                                                        AliPID::kProton);
+    Float_t nSigBachPion = pidResponse->NumberOfSigmas(AliPIDResponse::kTPC,
+                                                        nTrack,
+                                                        AliPID::kPion);
+
+    // if the Bachelor is not a pion, the candidate can go
+    if (!nSigBachPion < fCascDaugnSigTPCMax) {
+      return false;
+    }
+    // if the daughter tracks are not a proton or a pion within loose cuts, the candidate can be rejected
+    if (!((nSigPosPion < fCascDaugnSigTPCMax
+        && nSigNegProton < fCascDaugnSigTPCMax)
+        || (nSigNegPion < fCascDaugnSigTPCMax
+            && nSigPosProton < fCascDaugnSigTPCMax)))
+      return false;
+  }
+
+  if (fCheckDaughterPileup) {
+    if (!((pTrack->GetTOFBunchCrossing() == 0)
+        || (nTrack->GetTOFBunchCrossing() == 0)
+        || (bachTrack->GetTOFBunchCrossing() == 0))) {
+      Bool_t PileUpPass = false;
+      for (Int_t iLay = 0; iLay < 6; ++iLay) {
+        //do not use SDD for Pile Up Rejection since detector is too slow
+        if (iLay == 2 || iLay == 3)
+          continue;
+
+        if (pTrack->HasPointOnITSLayer(iLay) || nTrack->HasPointOnITSLayer(iLay)
+            || bachTrack->HasPointOnITSLayer(iLay)) {
+          PileUpPass = true;
+          break;
+        }
+      }
+      if (!PileUpPass)
+        return false;
+    }
+  }
+  return true;
+}
+
 
 AliAnalysisNanoAODEventCuts::AliAnalysisNanoAODEventCuts():
   AliAnalysisCuts(), 
-  fVertexRange(-1),
   fTrackCut(0),
   fMinMultiplicity(-1),
   fMaxMultiplicity(-1),
-  fAnalysisUtils(0),
-  fCutPileUpMV(kFALSE)  
+  fEventCuts()
 {
   // default ctor   
-  fAnalysisUtils = new AliAnalysisUtils;
+  
 }
 
 Bool_t AliAnalysisNanoAODEventCuts::IsSelected(TObject* obj)
 {
   // Returns true if object accepted on the event level
   
-  AliAODEvent* evt = dynamic_cast<AliAODEvent*>(obj);
+  AliVEvent* evt = dynamic_cast<AliVEvent*>(obj);
   
-  if (fCutPileUpMV)
-    if (fAnalysisUtils->IsPileUpMV(evt))
-      return kFALSE;
-  
-  if (fVertexRange > 0)
-  {
-    const AliVVertex* vertex = evt->GetPrimaryVertex();
-    if (!vertex) 
-      return kFALSE;
-    
-    if (vertex->GetNContributors() < 1) 
-    {
-      // SPD vertex cut
-      vertex = evt->GetPrimaryVertexSPD();    
-      if (!vertex || vertex->GetNContributors() < 1) 
-        return kFALSE;
-    }    
-    
-    if (TMath::Abs(vertex->GetZ()) > fVertexRange) 
-      return kFALSE;
-  }
+  if (!fEventCuts.AcceptEvent(evt))
+    return kFALSE;
   
   if (fTrackCut != 0)
   {
@@ -124,22 +370,27 @@ void AliNanoAODSimpleSetter::Init(AliNanoAODHeader* head, TString varListHeader)
     else if(var == "BunchCrossNumber"  ){ head->SetBunchCrossNumberIndex(indexInt); indexInt++; continue;}
     else if(var == "OrbitNumber"       ){ head->SetOrbitNumberIndex(indexInt); indexInt++; continue;}
     else if(var == "PeriodNumber"      ){ head->SetPeriodNumberIndex(indexInt); indexInt++; continue;}
-    else if(var == "Centr"      ) head->SetCentrIndex      (index);
-    else if(var == "CentrTRK"   ) head->SetCentrTRKIndex   (index);
-    else if(var == "CentrCL0"   ) head->SetCentrCL0Index   (index);
-    else if(var == "CentrCL1"   ) head->SetCentrCL1Index   (index);
-    else if(var == "MagField"   ) head->SetMagFieldIndex   (index);
-    else if(var == "OfflineTrigger"   ) head->SetOfflineTriggerIndex   (index);
-    else if(var == "RunNumber"  ) head->SetRunNumberIndex  (index);
+    else if(var == "CentrV0M"   ) head->SetCentrIndex      (index++);
+    else if(var == "CentrTRK"   ) head->SetCentrTRKIndex   (index++);
+    else if(var == "CentrCL0"   ) head->SetCentrCL0Index   (index++);
+    else if(var == "CentrCL1"   ) head->SetCentrCL1Index   (index++);
+    else if(var == "MagField"   ) head->SetMagFieldIndex   (index++);
+    else if(var == "OfflineTrigger"   ) head->SetOfflineTriggerIndex   (indexInt++);
+    else if(var == "RunNumber"  ) head->SetRunNumberIndex  (indexInt++);
+    else if(var == "T0Spread" ) {
+      for (int i=0; i<4; i++)
+        head->SetT0SpreadIndex(i, index++);
+    }
+    else if(var == "NumberOfESDTracks"  ) head->SetNumberOfESDTracksIndex  (indexInt++);
     else if(var.BeginsWith("cst") || var.BeginsWith("MultSelection.")) {
       cstMap[var] = index;
-      fMultMap[var(14, var.Length())] = index;
+      if (var.BeginsWith("MultSelection."))
+        fMultMap[var(14, var.Length())] = index;
       std::cout << "ADDING " << index << " " << cstMap[var] << " " << var.Data() << std::endl;
+      index++;
     }
     else 
       AliFatal(Form("Invalid var [%s]", var.Data()));
-
-    index++;
   }
 
   vars->Delete();
@@ -201,24 +452,25 @@ void AliNanoAODSimpleSetter::SetNanoAODHeader(const AliAODEvent* event, AliNanoA
   if ((head->GetCentrCL1Index())!=-1)  head->SetVar(head->GetCentrCL1Index() ,           centrCL1 );
   if ((head->GetCentrCL0Index())!=-1)  head->SetVar(head->GetCentrCL0Index() ,           centrCL0 );
   if ((head->GetMagFieldIndex())!=-1)  head->SetVar(head->GetMagFieldIndex() ,           magfield );
-  if ((head->GetOfflineTriggerIndex())!=-1)  head->SetVar(head->GetOfflineTriggerIndex() , Double_t(offlineTrigger));
-  if ((head->GetRunNumberIndex())!=-1) head->SetVar(head->GetRunNumberIndex(), Double_t(runNumber));
+  if ((head->GetOfflineTriggerIndex())!=-1)  head->SetVarInt(head->GetOfflineTriggerIndex(), offlineTrigger);
+  if ((head->GetRunNumberIndex())!=-1) head->SetRunNumber(runNumber);
+  if (head->GetT0SpreadIndex(0) != -1)
+    for (int i=0; i<4; i++)
+      head->SetVar(head->GetT0SpreadIndex(i), header->GetT0spread(i));
+  if ((head->GetNumberOfESDTracksIndex())!=-1) head->SetVarInt(head->GetNumberOfESDTracksIndex(), header->GetNumberOfESDTracks());
 }
 
 void AliNanoAODSimpleSetter::SetNanoAODTrack (const AliAODTrack * aodTrack, AliNanoAODTrack * nanoTrack) 
 {
   // Set custom variables in the special track
-  
-  // Cache the indexes
-  static Int_t kcstNSigmaTPCPi  = AliNanoAODTrackMapping::GetInstance()->GetVarIndex("cstNSigmaTPCPi");
-  static Int_t kcstNSigmaTPCKa  = AliNanoAODTrackMapping::GetInstance()->GetVarIndex("cstNSigmaTPCKa");
-  static Int_t kcstNSigmaTPCPr  = AliNanoAODTrackMapping::GetInstance()->GetVarIndex("cstNSigmaTPCPr");
-  static Int_t kcstNSigmaTOFPi  = AliNanoAODTrackMapping::GetInstance()->GetVarIndex("cstNSigmaTOFPi");
-  static Int_t kcstNSigmaTOFKa  = AliNanoAODTrackMapping::GetInstance()->GetVarIndex("cstNSigmaTOFKa");
-  static Int_t kcstNSigmaTOFPr  = AliNanoAODTrackMapping::GetInstance()->GetVarIndex("cstNSigmaTOFPr");
 
-  if (kcstNSigmaTPCPi != -1 || kcstNSigmaTPCKa != -1 || kcstNSigmaTPCPr != -1 ||
-      kcstNSigmaTOFPi != -1 || kcstNSigmaTOFKa != -1 || kcstNSigmaTOFPr != -1)
+  // PID
+  
+  // Initialize PID track mapping
+  static const Bool_t bPIDFilled = AliNanoAODTrack::InitPIDIndex();
+  
+  // PID variables
+  if (bPIDFilled)
   {
     // Get the PID info
     static AliPIDResponse* pidResponse = 0;
@@ -231,19 +483,25 @@ void AliNanoAODSimpleSetter::SetNanoAODTrack (const AliAODTrack * aodTrack, AliN
     if (!pidResponse)
       AliFatal("PID response not available but fields requested");
 
-    const AliVParticle *inEvHMain = dynamic_cast<const AliVParticle *>(aodTrack);
-    Double_t nsigmaTPCkProton = pidResponse->NumberOfSigmasTPC(inEvHMain, AliPID::kProton);
-    Double_t nsigmaTPCkKaon   = pidResponse->NumberOfSigmasTPC(inEvHMain, AliPID::kKaon); 
-    Double_t nsigmaTPCkPion   = pidResponse->NumberOfSigmasTPC(inEvHMain, AliPID::kPion); 
-    Double_t nsigmaTOFkProton = pidResponse->NumberOfSigmasTOF(inEvHMain, AliPID::kProton);
-    Double_t nsigmaTOFkKaon   = pidResponse->NumberOfSigmasTOF(inEvHMain, AliPID::kKaon); 
-    Double_t nsigmaTOFkPion   = pidResponse->NumberOfSigmasTOF(inEvHMain, AliPID::kPion); 
+    for (Int_t r = AliNanoAODTrack::kSigmaTPC; r<AliNanoAODTrack::kLAST; r++) {
+      for (Int_t p = 0; p<AliPID::kSPECIESC; p++) {
+        Int_t index = AliNanoAODTrack::GetPIDIndex((AliNanoAODTrack::ENanoPIDResponse) r, (AliPID::EParticleType) p);
+        if (index == -1)
+          continue;
+        Double_t value = 0;
+        if (r == AliNanoAODTrack::kSigmaTPC)
+          value = pidResponse->NumberOfSigmasTPC(aodTrack, (AliPID::EParticleType) p);
+        else if (r == AliNanoAODTrack::kSigmaTOF)
+          value = pidResponse->NumberOfSigmasTOF(aodTrack, (AliPID::EParticleType) p);
 
-    if (kcstNSigmaTPCPi != -1)  nanoTrack->SetVar(kcstNSigmaTPCPi, nsigmaTPCkPion);
-    if (kcstNSigmaTPCKa != -1)  nanoTrack->SetVar(kcstNSigmaTPCKa, nsigmaTPCkKaon);
-    if (kcstNSigmaTPCPr != -1)  nanoTrack->SetVar(kcstNSigmaTPCPr, nsigmaTPCkProton);
-    if (kcstNSigmaTOFPi != -1)  nanoTrack->SetVar(kcstNSigmaTOFPi, nsigmaTOFkPion);
-    if (kcstNSigmaTOFKa != -1)  nanoTrack->SetVar(kcstNSigmaTOFKa, nsigmaTOFkKaon);
-    if (kcstNSigmaTOFPr != -1)  nanoTrack->SetVar(kcstNSigmaTOFPr, nsigmaTOFkProton);
+        nanoTrack->SetVar(index, value);
+      }
+    }
   }
+
+  // additional fields which are to be moved to AliNanoAODTrack
+  // TPC clusters
+  static const Int_t cstTPCClusterInfo21 = AliNanoAODTrackMapping::GetInstance()->GetVarIndex("cstTPCClusterInfo21");
+  if (cstTPCClusterInfo21 != -1)
+    nanoTrack->SetVar(cstTPCClusterInfo21, aodTrack->GetTPCClusterInfo(2,1));
 }
