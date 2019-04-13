@@ -62,6 +62,7 @@ class AliAnalysisTaskEmcalJetPerfTree : public AliAnalysisTaskEmcalJet {
 
   void                        DoJetLoop()                                       ;
   void                        DoResponse()                                      ;
+  void                        SetGlobalVariables()                              ;
 
   void                        FillResponseMatrix(AliEmcalJet * jet1, AliEmcalJet * jet2)                              ;
   void                        FillResponseTree(AliEmcalJet * jet1, AliEmcalJet * jet2)                                ;
@@ -76,6 +77,12 @@ class AliAnalysisTaskEmcalJetPerfTree : public AliAnalysisTaskEmcalJet {
   bool fPartLevelResp; ///<  If true, create the response between hybrid and particle level and if false create response between hybrid and detector level
   double fMinFractionShared;             ///<  Minimum fraction of shared jet pt required for matching a hybrid jet to detector level     
   bool fCreateTree; ///< If true, also fill a tree with MC variables in addition to the response and JES
+  Float_t        fMultiplicity; ///< the event level multiplicity
+  Long64_t       feventID; ///< the event ID
+  Float_t fvtx_X; ///< the x vertex position
+  Float_t fvtx_Y; ///< the y vertex position
+  Float_t fvtx_Z; ///< the z vertex position
+  Float_t frho; ///< the event level background density
 
   Float_t         fJet1_Pt;                        //!<! array buffer                                                                      
   Float_t         fJet1_Eta;                       //!<! array buffer                                                                      

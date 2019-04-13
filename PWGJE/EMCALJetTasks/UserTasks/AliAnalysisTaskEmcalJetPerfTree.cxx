@@ -48,7 +48,8 @@ AliAnalysisTaskEmcalJetPerfTree::AliAnalysisTaskEmcalJetPerfTree() :
   fHistManager(),
   fPartLevelResp(true),
   fMinFractionShared(0.),
-  fCreateTree(false)
+  fCreateTree(false),
+  fMultiplicity(0.)
 {
 }
 
@@ -62,7 +63,8 @@ AliAnalysisTaskEmcalJetPerfTree::AliAnalysisTaskEmcalJetPerfTree(const char *nam
   fHistManager(name),
   fPartLevelResp(true),
   fMinFractionShared(0.),
-  fCreateTree(false)
+  fCreateTree(false),
+  fMultiplicity(0.)
 {
   SetMakeGeneralHistograms(kTRUE);
 }
@@ -261,8 +263,42 @@ void AliAnalysisTaskEmcalJetPerfTree::ExecOnce()
  */
 Bool_t AliAnalysisTaskEmcalJetPerfTree::Run()
 {
+  SetGlobalVariables();
   DoResponse();
   return kTRUE;
+}
+
+/**
+ *make sure all the global variables are set to fill the tree later
+ */
+  
+void AliAnalysisTaskEmcalJetPerfTree::SetGlobalVariables()
+{
+  feventID = 0;
+  const AliVVertex* myVertex = InputEvent()->GetPrimaryVertex();
+  if(!myVertex && MCEvent())
+    myVertex = MCEvent()->GetPrimaryVertex();
+  Double_t vtx[3] = {0, 0, 0};
+  if(myVertex)
+    {
+      vtx[0] = myVertex->GetX(); vtx[1] = myVertex->GetY(); vtx[2] = myVertex->GetZ();
+    }
+  fvtx_X                        = vtx ? vtx[0] : 0;
+  fvtx_Y                        = vtx ? vtx[1] : 0;
+  fvtx_Z                        = vtx ? vtx[2] : 0;
+
+
+  AliVHeader* eventIDHeader = InputEvent()->GetHeader();
+  if(eventIDHeader)
+    feventID = eventIDHeader->GetEventIdAsLong();
+
+
+  fMultiplicity = 0;
+  for(Int_t iCont=0; iCont<fParticleCollArray.GetEntriesFast(); iCont++)
+    fMultiplicity += GetParticleContainer(iCont)->GetNAcceptedParticles();
+  
+  frho = GetJetContainer(0)->GetRhoVal();
+
 }
 
 /**
@@ -369,6 +405,25 @@ Bool_t AliAnalysisTaskEmcalJetPerfTree::Run()
  void AliAnalysisTaskEmcalJetPerfTree::FillResponseTree(AliEmcalJet * jet1, AliEmcalJet * jet2)
  {
    //fill the tree once I figure out how to do this
+
+   Jet1_Pt                                   = jet1->Pt() - rho*jet1->Area();
+   Jet1_Phi                                   = jet1->Phi();
+   Jet1_Eta                                   = jet1->Eta();
+   Jet1_Area                                  = jet1->Area();
+   Jet2_Pt                                   = jet2->Pt() - rho*jet2->Area();
+   Jet2_Phi                                   = jet2->Phi();
+   Jet2_Eta                                   = jet2->Eta();
+   Jet2_Area                                  = jet2->Area();
+
+   
+   // Set event properties                                                                                                                
+   fBuffer_Event_BackgroundDensity               = rho;
+   fBuffer_Event_Vertex_X                        = vertex ? vertex[0] : 0;
+   fBuffer_Event_Vertex_Y                        = vertex ? vertex[1] : 0;
+   fBuffer_Event_Vertex_Z                        = vertex ? vertex[2] : 0;
+   fBuffer_Event_Centrality                      = fCent;
+   fBuffer_Event_Multiplicity                    = fMultiplicity;
+   fBuffer_Event_ID                              = eventID;
  }
 
 
