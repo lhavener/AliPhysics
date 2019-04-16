@@ -23,6 +23,8 @@
 #include <AliVCluster.h>
 #include <AliVParticle.h>
 #include <AliLog.h>
+#include "AliMCEvent.h"
+
 
 #include "AliTLorentzVector.h"
 #include "AliEmcalJet.h"
@@ -406,24 +408,24 @@ void AliAnalysisTaskEmcalJetPerfTree::SetGlobalVariables()
  {
    //fill the tree once I figure out how to do this
 
-   Jet1_Pt                                   = jet1->Pt() - rho*jet1->Area();
-   Jet1_Phi                                   = jet1->Phi();
-   Jet1_Eta                                   = jet1->Eta();
-   Jet1_Area                                  = jet1->Area();
-   Jet2_Pt                                   = jet2->Pt() - rho*jet2->Area();
-   Jet2_Phi                                   = jet2->Phi();
-   Jet2_Eta                                   = jet2->Eta();
-   Jet2_Area                                  = jet2->Area();
+   fJet1_Pt                                   = jet1->Pt() - frho*jet1->Area();
+   fJet1_Phi                                   = jet1->Phi();
+   fJet1_Eta                                   = jet1->Eta();
+   fJet1_Area                                  = jet1->Area();
+   fJet2_Pt                                   = jet2->Pt() - frho*jet2->Area();
+   fJet2_Phi                                   = jet2->Phi();
+   fJet2_Eta                                   = jet2->Eta();
+   fJet2_Area                                  = jet2->Area();
 
    
    // Set event properties                                                                                                                
-   fBuffer_Event_BackgroundDensity               = rho;
-   fBuffer_Event_Vertex_X                        = vertex ? vertex[0] : 0;
-   fBuffer_Event_Vertex_Y                        = vertex ? vertex[1] : 0;
-   fBuffer_Event_Vertex_Z                        = vertex ? vertex[2] : 0;
-   fBuffer_Event_Centrality                      = fCent;
-   fBuffer_Event_Multiplicity                    = fMultiplicity;
-   fBuffer_Event_ID                              = eventID;
+   fEvent_BackgroundDensity               = frho;
+   fEvent_Vertex_X                        = fvtx_X;
+   fEvent_Vertex_Y                        = fvtx_Y;
+   fEvent_Vertex_Z                        = fvtx_Z;
+   fEvent_Centrality                      = fCent;
+   fEvent_Multiplicity                    = fMultiplicity;
+   fEvent_ID                              = feventID;
  }
 
 
