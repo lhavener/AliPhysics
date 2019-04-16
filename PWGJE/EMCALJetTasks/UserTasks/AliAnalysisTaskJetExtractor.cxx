@@ -1048,7 +1048,7 @@ void AliAnalysisTaskJetExtractor::GetTrueJetPtFraction(AliEmcalJet* jet, Double_
     pt_all += ClusterPt;
   } // end loop over clusters
 
-
+  
   // Calculate the truth pT for the case of embedding
   if (fIsEmbeddedEvent){
     // get the cluster container from the input event corresponding
@@ -1056,15 +1056,18 @@ void AliAnalysisTaskJetExtractor::GetTrueJetPtFraction(AliEmcalJet* jet, Double_
     clusterCont = GetClusterContainer(fEmbedClusterContainerName);
     // loop over clusters in the input event
     // check to make sure that we are getting a cluster container
+    InputEvent()->Is();
     if(clusterCont){
       for(int k=0; k< clusterCont->GetNClusters(); k++){
         const AliVCluster* cluster = clusterCont->GetCluster(k);
         TLorentzVector clusterMomentum;
         cluster->GetMomentum(clusterMomentum, primVtx);
         Double_t ClusterPt = clusterMomentum.Perp();
+        std::cout << " ******** embeded event ************* " << endl;
         if(IsClusterInCone(clusterMomentum, jet->Eta(), jet->Phi(), GetJetContainer(0)->GetJetRadius())){
+          std::cout << " ******** adding cluster pT ************* " << endl;
           pt_truth += ClusterPt;
-          pt_truth_clusters += ClusterPt; 
+          pt_truth_clusters += ClusterPt;
         }
       } // end loop over clusters
     }// end if clusterCont
