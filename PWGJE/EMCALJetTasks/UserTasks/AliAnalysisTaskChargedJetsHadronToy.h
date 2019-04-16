@@ -61,7 +61,7 @@ public:
   void                        SetMixedEventTreeName(const char* val)          {fMixedEvent_TreeName = val;}
   void                        SetMixedEventTotalFiles(Int_t val)              {fMixedEvent_NumTotalFiles = val;}
   
-  AliAODCaloCells*            GetToyCells(const char* arrName)                {if(arrName == fOutputToyCellsName) return fOutputToyCells;}         
+  AliAODCaloCells*            GetToyCells()                                   {return fOutputToyCells;}
 
 protected:
   // ### Settings
