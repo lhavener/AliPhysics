@@ -53,7 +53,7 @@ class AliAnalysisTaskJetExtractor : public AliAnalysisTaskEmcalJet {
   void                        SetSaveSecondaryVertices(Bool_t val) {fSaveSecondaryVertices = val; fInitialized = kFALSE;}
   void                        SetSaveTriggerTracks(Bool_t val) {fSaveTriggerTracks = val; fInitialized = kFALSE;}
   void                        SetSaveCaloClusters(Bool_t val) {fSaveCaloClusters = val; fInitialized = kFALSE;}
-  
+
   void                        ActivateJetMatching(const char* arrayNameDetLevel, const char* arrayNamePartLevel, const char* rhoName = 0, const char* rhoMassName = 0)
                                 {fMatchedDetLevelJetsArrayName = arrayNameDetLevel; fMatchedPartLevelJetsArrayName = arrayNamePartLevel; fMatchedJetsRhoName = rhoName ? rhoName : ""; fMatchedJetsRhoMassName = rhoMassName ? rhoMassName : "";}
   void                        SetMCParticleArrayName(const char* name)            { fMCParticleArrayName = name; }
@@ -68,7 +68,7 @@ class AliAnalysisTaskJetExtractor : public AliAnalysisTaskEmcalJet {
   void                        SetSaveTrackPDGCode(Bool_t val)                     { fSaveTrackPDGCode = val; }
   void                        SetRandomSeed(ULong_t val)                          { fRandomSeed  = val; }
   void                        SetRandomSeedCones(ULong_t val)                     { fRandomSeedCones  = val; }
-  void                        SetEmbedClusterContainerName(const char* name)      { fEmbedClusterContainerName = name;}
+  void                        SetNeedEmbedClusterContainer(Bool_t val)            { fNeedEmbedClusterContainer = val;}
 
   void                        SetEventCutTriggerTrack(Double_t minPt, Double_t maxPt, Int_t minLabel=-9999999, Int_t maxLabel=+9999999)
                                 { fEventCut_TriggerTrackMinPt = minPt; fEventCut_TriggerTrackMaxPt = maxPt; fEventCut_TriggerTrackMinLabel = minLabel;
@@ -82,7 +82,7 @@ class AliAnalysisTaskJetExtractor : public AliAnalysisTaskEmcalJet {
   void                        FillEventControlHistograms();
   void                        FillJetControlHistograms(AliEmcalJet* jet);
   void                        CalculateJetShapes(AliEmcalJet* jet, Double_t& leSub_noCorr, Double_t& angularity, Double_t& momentumDispersion, Double_t& trackPtMean, Double_t& trackPtMedian);
-  void                        GetTrueJetPtFraction(AliEmcalJet* jet, Double_t& truePtFraction, Double_t& truePtFraction_mcparticles, Double_t& truePtFraction_tracks, Double_t& truePtFraction_clusters);
+  void                        GetTrueJetPtFraction(AliEmcalJet* jet, Double_t& truePtFraction, Double_t& truePtFraction_mcparticles);
   void                        GetMatchedJetObservables(AliEmcalJet* jet, Double_t& matchedJetPt, Double_t& matchedJetMass, Double_t& matchedJetDistance, Bool_t IsPartLevelMatching);
   void                        GetJetType(AliEmcalJet* jet, Int_t& typeHM, Int_t& typePM, Int_t& typeIC);
   Bool_t                      IsTriggerTrackInEvent();
@@ -121,7 +121,7 @@ class AliAnalysisTaskJetExtractor : public AliAnalysisTaskEmcalJet {
   TString                     fMatchedJetsRhoName;                      ///< Name for matched jets rho object
   TString                     fMatchedJetsRhoMassName;                  ///< Name for matched jets rho_mass object
   TString                     fMCParticleArrayName;                     ///< Array name of MC particles in event (mcparticles)
-  TString                     fEmbedClusterContainerName;               ///< Name of cluster container in the embedded event
+  Bool_t                      fNeedEmbedClusterContainer;               ///< If we need to get embedded cluster container (true for hybrid event)
 
 
   ULong_t                     fRandomSeed;                              ///< random seed
@@ -210,7 +210,7 @@ class AliEmcalJetTree : public TNamed
     void            FillBuffer_JetShapes(AliEmcalJet* jet, Double_t leSub_noCorr, Double_t angularity, Double_t momentumDispersion, Double_t trackPtMean, Double_t trackPtMedian);
     void            FillBuffer_Splittings(std::vector<Float_t>& splittings_radiatorE, std::vector<Float_t>& splittings_kT, std::vector<Float_t>& splittings_theta, Bool_t saveSecondaryVertices, std::vector<Int_t>& splittings_secVtx_rank, std::vector<Int_t>& splittings_secVtx_index);
     void            FillBuffer_PID(std::vector<Float_t>& trackPID_ITS, std::vector<Float_t>& trackPID_TPC, std::vector<Float_t>& trackPID_TOF, std::vector<Float_t>& trackPID_TRD, std::vector<Short_t>& trackPID_Reco, std::vector<Int_t>& trackPID_Truth);
-    void            FillBuffer_MonteCarlo(Int_t motherParton, Int_t motherHadron, Int_t partonInitialCollision, Float_t matchJetDistance, Float_t matchedJetPt, Float_t matchedJetMass, Float_t secondMatchedJetDistance, Float_t secondMatchedJetPt, Float_t secondMatchedJetMass, Float_t truePtFraction, Float_t truePtFraction_mcparticles, Float_t truePtFraction_tracks,Float_t truePtFraction_clusters, Float_t ptHard, Float_t eventWeight, Float_t impactParameter);
+    void            FillBuffer_MonteCarlo(Int_t motherParton, Int_t motherHadron, Int_t partonInitialCollision, Float_t matchJetDistance, Float_t matchedJetPt, Float_t matchedJetMass, Float_t secondMatchedJetDistance, Float_t secondMatchedJetPt, Float_t secondMatchedJetMass, Float_t truePtFraction, Float_t truePtFraction_mcparticles, Float_t ptHard, Float_t eventWeight, Float_t impactParameter);
     void            FillBuffer_ImpactParameters(std::vector<Float_t>& trackIP_d0, std::vector<Float_t>& trackIP_z0, std::vector<Float_t>& trackIP_d0cov, std::vector<Float_t>& trackIP_z0cov);
     void            FillBuffer_TriggerTracks(std::vector<Float_t>& triggerTrackPt, std::vector<Float_t>& triggerTrackDeltaEta, std::vector<Float_t>& triggerTrackDeltaPhi);
     // ######################################
@@ -301,8 +301,7 @@ class AliEmcalJetTree : public TNamed
     Float_t         fBuffer_Jet_MC_MatchedPartLevelJet_Mass;       //!<! array buffer
     Float_t         fBuffer_Jet_MC_TruePtFraction;               //!<! array buffer
     Float_t         fBuffer_Jet_MC_TruePtFraction_PartLevel;     //!<! array buffer
-    Float_t         fBuffer_Jet_MC_TruePtFraction_tracks;        //!<! array buffer
-    Float_t         fBuffer_Jet_MC_TruePtFraction_clusters;      //!<! array buffer
+
 
     Int_t           fBuffer_NumTriggerTracks;
     Int_t           fBuffer_NumSecVertices;

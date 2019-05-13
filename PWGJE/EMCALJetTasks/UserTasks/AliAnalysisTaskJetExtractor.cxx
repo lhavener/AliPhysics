@@ -236,7 +236,7 @@ void AliEmcalJetTree::FillBuffer_ImpactParameters(std::vector<Float_t>& trackIP_
 }
 
 //________________________________________________________________________
-void AliEmcalJetTree::FillBuffer_MonteCarlo(Int_t motherParton, Int_t motherHadron, Int_t partonInitialCollision, Float_t matchedJetDistance_Det, Float_t matchedJetPt_Det, Float_t matchedJetMass_Det, Float_t matchedJetDistance_Part, Float_t matchedJetPt_Part, Float_t matchedJetMass_Part, Float_t truePtFraction, Float_t truePtFraction_PartLevel, Float_t truePtFraction_tracks, Float_t truePtFraction_clusters, Float_t ptHard, Float_t eventWeight, Float_t impactParameter)
+void AliEmcalJetTree::FillBuffer_MonteCarlo(Int_t motherParton, Int_t motherHadron, Int_t partonInitialCollision, Float_t matchedJetDistance_Det, Float_t matchedJetPt_Det, Float_t matchedJetMass_Det, Float_t matchedJetDistance_Part, Float_t matchedJetPt_Part, Float_t matchedJetMass_Part, Float_t truePtFraction, Float_t truePtFraction_PartLevel,  Float_t ptHard, Float_t eventWeight, Float_t impactParameter)
 {
   fBuffer_Jet_MC_MotherParton = motherParton;
   fBuffer_Jet_MC_MotherHadron = motherHadron;
@@ -249,8 +249,7 @@ void AliEmcalJetTree::FillBuffer_MonteCarlo(Int_t motherParton, Int_t motherHadr
   fBuffer_Jet_MC_MatchedPartLevelJet_Mass = matchedJetMass_Part;
   fBuffer_Jet_MC_TruePtFraction = truePtFraction;
   fBuffer_Jet_MC_TruePtFraction_PartLevel = truePtFraction_PartLevel;
-  fBuffer_Jet_MC_TruePtFraction_tracks = truePtFraction_tracks;
-  fBuffer_Jet_MC_TruePtFraction_clusters = truePtFraction_clusters;
+
 
   fBuffer_Event_PtHard = ptHard;
   fBuffer_Event_Weight = eventWeight;
@@ -454,8 +453,6 @@ void AliEmcalJetTree::InitializeTree(Bool_t saveCaloClusters, Bool_t saveMCInfor
     fJetTree->Branch("Jet_MC_MatchedPartLevelJet_Mass",&fBuffer_Jet_MC_MatchedPartLevelJet_Mass,"Jet_MC_MatchedPartLevelJet_Mass/F");
     fJetTree->Branch("Jet_MC_TruePtFraction",&fBuffer_Jet_MC_TruePtFraction,"Jet_MC_TruePtFraction/F");
     fJetTree->Branch("Jet_MC_TruePtFraction_PartLevel",&fBuffer_Jet_MC_TruePtFraction_PartLevel,"Jet_MC_TruePtFraction_PartLevel/F");
-    fJetTree->Branch("Jet_MC_TruePtFraction_tracks",&fBuffer_Jet_MC_TruePtFraction_tracks,"Jet_MC_TruePtFraction_tracks/F");
-    fJetTree->Branch("Jet_MC_TruePtFraction_clusters",&fBuffer_Jet_MC_TruePtFraction_clusters,"Jet_MC_TruePtFraction_clusters/F");
   }
 
   if(saveSecondaryVertices)
@@ -502,7 +499,7 @@ AliAnalysisTaskJetExtractor::AliAnalysisTaskJetExtractor() :
   fMatchedJetsRhoName(""),
   fMatchedJetsRhoMassName(""),
   fMCParticleArrayName("mcparticles"),
-  fEmbedClusterContainerName("caloClusters"),
+  fNeedEmbedClusterContainer(0),
   fRandomSeed(0),
   fRandomSeedCones(0),
   fVertexerCuts(0),
@@ -551,7 +548,7 @@ AliAnalysisTaskJetExtractor::AliAnalysisTaskJetExtractor(const char *name) :
   fMatchedJetsRhoName(""),
   fMatchedJetsRhoMassName(""),
   fMCParticleArrayName("mcparticles"),
-  fEmbedClusterContainerName("caloClusters"),
+  fNeedEmbedClusterContainer(0),
   fRandomSeed(0),
   fRandomSeedCones(0),
   fVertexerCuts(0),
@@ -788,20 +785,19 @@ Bool_t AliAnalysisTaskJetExtractor::Run()
       Double_t matchedJetMass_Part = 0;
       Double_t truePtFraction = 0;
       Double_t truePtFraction_PartLevel = 0;
-      Double_t truePtFraction_tracks = 0;
-      Double_t truePtFraction_clusters = 0;
       Int_t currentJetType_HM = 0;
       Int_t currentJetType_PM = 0;
       Int_t currentJetType_IC = 0;
       // Get jet type from MC (hadron matching, parton matching definition - for HF jets)
       GetJetType(jet, currentJetType_HM, currentJetType_PM, currentJetType_IC);
       // Get true estimators: for pt, jet mass, ...
-      GetTrueJetPtFraction(jet, truePtFraction, truePtFraction_PartLevel, truePtFraction_tracks, truePtFraction_clusters);
-      GetMatchedJetObservables(jet, matchedJetPt_Det, matchedJetMass_Det, matchedJetDistance_Det, kFALSE);
+      GetTrueJetPtFraction(jet, truePtFraction, truePtFraction_PartLevel);
+      if(fMatchedDetLevelJetsArrayName != "")
+        GetMatchedJetObservables(jet, matchedJetPt_Det, matchedJetMass_Det, matchedJetDistance_Det, kFALSE);
       // if we have a second matching array name given, do the second Matching
       if(fMatchedPartLevelJetsArrayName != "")
         GetMatchedJetObservables(jet, matchedJetPt_Part, matchedJetMass_Part, matchedJetDistance_Part, kTRUE);
-      fJetTree->FillBuffer_MonteCarlo(currentJetType_PM,currentJetType_HM,currentJetType_IC,matchedJetDistance_Det,matchedJetPt_Det,matchedJetMass_Det,matchedJetDistance_Part,matchedJetPt_Part,matchedJetMass_Part,truePtFraction,truePtFraction_PartLevel, truePtFraction_tracks, truePtFraction_clusters,fPtHard,fEventWeight,fImpactParameter);
+      fJetTree->FillBuffer_MonteCarlo(currentJetType_PM,currentJetType_HM,currentJetType_IC,matchedJetDistance_Det,matchedJetPt_Det,matchedJetMass_Det,matchedJetDistance_Part,matchedJetPt_Part,matchedJetMass_Part,truePtFraction,truePtFraction_PartLevel,fPtHard,fEventWeight,fImpactParameter);
     }
 
     // ### CONSTITUENT LOOP: Retrieve PID values + impact parameters
@@ -982,18 +978,14 @@ void AliAnalysisTaskJetExtractor::CalculateJetShapes(AliEmcalJet* jet, Double_t&
 }
 
 //________________________________________________________________________
-void AliAnalysisTaskJetExtractor::GetTrueJetPtFraction(AliEmcalJet* jet, Double_t& truePtFraction, Double_t& truePtFraction_mcparticles, Double_t& truePtFraction_tracks, Double_t& truePtFraction_clusters)
+void AliAnalysisTaskJetExtractor::GetTrueJetPtFraction(AliEmcalJet* jet, Double_t& truePtFraction, Double_t& truePtFraction_mcparticles)
 {
   // #################################################################################
   // ##### FRACTION OF TRUE PT IN JET: Defined as "not from toy"
   Double_t pt_truth = 0.;
   Double_t pt_truth_mcparticles = 0.;
-  Double_t pt_truth_tracks = 0.;
-  Double_t pt_truth_clusters = 0.;
   Double_t pt_all   = 0.;
   truePtFraction = 0;
-  truePtFraction_tracks = 0;
-  truePtFraction_clusters = 0;
   truePtFraction_mcparticles = 0;
 
   // ### Loop over all tracks constituents
@@ -1005,9 +997,9 @@ void AliAnalysisTaskJetExtractor::GetTrueJetPtFraction(AliEmcalJet* jet, Double_
 
     // Particles marked w/ labels within label range OR explicitly set as embedded tracks are considered to be from truth
     if (  (fIsEmbeddedEvent && jet->GetParticleConstituents()[iConst].IsFromEmbeddedEvent()) ||
-          (!fIsEmbeddedEvent && ((particle->GetLabel() >= fTruthMinLabel) && (particle->GetLabel() < fTruthMaxLabel)))  )
-      pt_truth += particle->Pt();
-      pt_truth_tracks += particle->Pt(); 
+          (!fIsEmbeddedEvent && ((particle->GetLabel() >= fTruthMinLabel) && (particle->GetLabel() < fTruthMaxLabel)))  ){
+            pt_truth += particle->Pt();
+    }
     pt_all += particle->Pt();
   }
   // Get the Primary Vertex
@@ -1036,38 +1028,33 @@ void AliAnalysisTaskJetExtractor::GetTrueJetPtFraction(AliEmcalJet* jet, Double_
     // #### Retrieve cluster pT
     TLorentzVector clusterMomentum;
     cluster->GetMomentum(clusterMomentum, primVtx);
-    Double_t ClusterPt = clusterMomentum.Perp();
-    // ####
-
-    // Particles marked w/ labels within label range OR explicitly set as embedded clusters are considered to be from truth
-    // if (  (fIsEmbeddedEvent && jet->GetClusterConstituents()[iConst].IsFromEmbeddedEvent()) ||
-    //       (!fIsEmbeddedEvent && ((cluster->GetLabel() >= fTruthMinLabel) && (cluster->GetLabel() < fTruthMaxLabel))))
-    //         pt_truth += ClusterPt;
-
     // Get the total pT from clusters in the jet
+    Double_t ClusterPt = clusterMomentum.Perp();
     pt_all += ClusterPt;
   } // end loop over clusters
 
-  
-  // Calculate the truth pT for the case of embedding
-  if (fIsEmbeddedEvent){
+  // Calculate the true pt fraction for the case where we have clusters
+  if (GetClusterContainer(0)){
     // get the cluster container from the input event corresponding
     AliClusterContainer* clusterCont = 0;
-    clusterCont = GetClusterContainer(fEmbedClusterContainerName);
+    if(fNeedEmbedClusterContainer){
+      // if hybrid event, take external cluster container
+      clusterCont = GetClusterContainer(1);
+    }
+    else{
+      clusterCont = GetClusterContainer(0);
+    }
     // loop over clusters in the input event
     // check to make sure that we are getting a cluster container
-    InputEvent()->Is();
     if(clusterCont){
       for(int k=0; k< clusterCont->GetNClusters(); k++){
-        const AliVCluster* cluster = clusterCont->GetCluster(k);
+        const AliVCluster* cluster = clusterCont->GetAcceptCluster(k);
+        if (!cluster)continue;
         TLorentzVector clusterMomentum;
         cluster->GetMomentum(clusterMomentum, primVtx);
         Double_t ClusterPt = clusterMomentum.Perp();
-        std::cout << " ******** embeded event ************* " << endl;
-        if(IsClusterInCone(clusterMomentum, jet->Eta(), jet->Phi(), GetJetContainer(0)->GetJetRadius())){
-          std::cout << " ******** adding cluster pT ************* " << endl;
+        if(IsClusterInCone(clusterMomentum, jet->Eta(), jet->Phi(), GetJetContainer(0)->GetJetRadius()) ){
           pt_truth += ClusterPt;
-          pt_truth_clusters += ClusterPt;
         }
       } // end loop over clusters
     }// end if clusterCont
@@ -1093,8 +1080,6 @@ void AliAnalysisTaskJetExtractor::GetTrueJetPtFraction(AliEmcalJet* jet, Double_
   if(pt_all)
   {
     truePtFraction = (pt_truth/pt_all);
-    truePtFraction_tracks = (pt_truth_tracks/pt_all);
-    truePtFraction_clusters = (pt_truth_clusters/pt_all);
     truePtFraction_mcparticles = (pt_truth_mcparticles/pt_all);
   }
 }
@@ -1114,7 +1099,7 @@ void AliAnalysisTaskJetExtractor::GetMatchedJetObservables(AliEmcalJet* jet, Dou
   // #################################################################################
   // ##### OBSERVABLES FROM MATCHED JETS: Jet pt, jet mass
   Double_t jetRadius = GetJetContainer(0)->GetJetRadius();
-  matchedJetDistance = jetRadius; // 8 is higher than maximum possible matching distance
+  matchedJetDistance = jetRadius; // only match if within the jet radius
   if(jet_array_name != "")
   {
     // only look at background for first Matching (don't need this for truth level-info)
@@ -1890,8 +1875,15 @@ AliAnalysisTaskJetExtractor* AliAnalysisTaskJetExtractor::AddTaskJetExtractor(TS
 
   // Particle container and track pt cut
   AliClusterContainer* clusterCont = 0;
-  if(clusterArray != "")
+  if(clusterArray != ""){
     clusterCont = myTask->AddClusterContainer(clusterArray);
+    clusterCont->SetClusECut(0.);
+    clusterCont->SetClusPtCut(0.);
+    clusterCont->SetClusNonLinCorrEnergyCut(0.);
+    clusterCont->SetClusHadCorrEnergyCut(0.30);
+    clusterCont->SetDefaultClusterEnergy(AliVCluster::kHadCorr);
+  }
+
 
   // Secondary vertex cuts (default settings from PWGHF)
   // (can be overwritten by using myTask->SetVertexerCuts(cuts) from outside macro)
