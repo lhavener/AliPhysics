@@ -94,7 +94,6 @@ AliEmcalCorrectionTask::AliEmcalCorrectionTask(const char * name) :
   fConfigurationInitialized(false),
   fIsEsd(false),
   fEventInitialized(false),
-  fRecycleUnusedEmbeddedEventsMode(false),
   fCent(0),
   fCentBin(-1),
   fMinCent(-999),
@@ -140,7 +139,6 @@ AliEmcalCorrectionTask::AliEmcalCorrectionTask(const AliEmcalCorrectionTask & ta
   fConfigurationInitialized(task.fConfigurationInitialized),
   fIsEsd(task.fIsEsd),
   fEventInitialized(task.fEventInitialized),
-  fRecycleUnusedEmbeddedEventsMode(task.fRecycleUnusedEmbeddedEventsMode),
   fCent(task.fCent),
   fCentBin(task.fCentBin),
   fMinCent(task.fMinCent),
@@ -204,7 +202,6 @@ void swap(AliEmcalCorrectionTask & first, AliEmcalCorrectionTask & second)
   swap(first.fConfigurationInitialized, second.fConfigurationInitialized);
   swap(first.fIsEsd, second.fIsEsd);
   swap(first.fEventInitialized, second.fEventInitialized);
-  swap(first.fRecycleUnusedEmbeddedEventsMode, second.fRecycleUnusedEmbeddedEventsMode);
   swap(first.fCent, second.fCent);
   swap(first.fCentBin, second.fCentBin);
   swap(first.fMinCent, second.fMinCent);
@@ -295,10 +292,6 @@ void AliEmcalCorrectionTask::Initialize(bool removeDummyTask)
 
   // Initialize components
   InitializeComponents();
-
-  // Determine whether to determine event selection via the embedding helper
-  // so embedded events can be "recycled"
-  fYAMLConfig.GetProperty("recycleUnusedEmbeddedEventsMode", fRecycleUnusedEmbeddedEventsMode);
 
   if (removeDummyTask == true) {
     RemoveDummyTask();
@@ -1093,15 +1086,6 @@ void AliEmcalCorrectionTask::UserCreateOutputObjectsComponents()
  */
 void AliEmcalCorrectionTask::UserExec(Option_t *option)
 {
-  // Recycle embedded events which do not pass the internal event selection in the embedding helper
-  if (fRecycleUnusedEmbeddedEventsMode) {
-    auto embeddingHelper = AliAnalysisTaskEmcalEmbeddingHelper::GetInstance();
-    if (embeddingHelper && embeddingHelper->EmbeddedEventUsed() == false) {
-      AliDebugStream(4) << "Embedding helper rejected the internal event. Skipping this event.\n";
-      return;
-    }
-  }
-
   // Initialize the event if not initialized
   if (!fEventInitialized)
     ExecOnce();
